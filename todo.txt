@@ -1,0 +1,89 @@
+TODO:
+* Finish listing - data/widget
+* Research MVC - refactor with shared controller calls?
+* Add files utils
+* Handle drag drop similar to keydown? 
+* 
+
+
+
+
+
+* documentation
+$.air
+
+$.air.hash  //util
+$.air.hash.toArray(hash) => array
+$.air.hash.getKeyCount(hash) => int
+
+$.air.crypto //util
+$.air.crypto.encrypt(value) => byte array
+
+$.air.bounds //util 
+$.air.bounds.get(el) => bounds { x, y, width, height }
+$.air.bounds.resize(bounds) => bounds { x, y, width, height }
+
+$.air.HTMLLoader //util
+$.air.HTMLLoader.create(config) => air.HTMLLoader
+$.air.HTMLLoader.fitToContent(air.HTMLLoader)
+$.air.HTMLLoader.copyAsBitMap(air.HTMLLoader) => air.BitMap
+
+$.air.filters
+$.air.filters.Filter //base filter class
+$.air.filters.DropShadow //filter sub class
+$.air.filters.FilterFactory //filter factory
+
+$.air.anim //util
+$.air.anim.linear(t, b, c, d) => double
+$.air.anim.ease(t, b, c, d) => double
+$.air.anim.Tween //tween class
+
+$.air.transform
+$.air.transform.Rotation //3D rotation class
+
+$.air.fx 
+$.air.fx.Effect //base 3D effect class
+$.air.fx.Flip //3D effect sub class
+$.air.fx.SingleFlip //3D effect sub class
+$.air.fx.Zoom //3D effect sub class
+$.air.fx.EffectFactory //3D effect factory
+
+$.air.fx.blender 
+$.air.fx.blender.Effect //base Pixel Blender effect class
+$.air.fx.blender.Dissolve //Pixel Blender effect sub class 
+$.air.fx.blender.Page //Pixel Blender effect sub class
+$.air.fx.blender.Waves //Pixel Blender effect sub class
+$.air.fx.blender.Shake //Pixel Blender effect sub class
+
+$.air.files //util
+$.air.files.temp(id) => file
+$.air.files.move(oldFile, newFile)
+$.air.files.del(file)
+$.air.files.text(file) => string
+$.air.files.read(file) => byte array
+$.air.files.write(file, byte array)
+$.air.files.images //util
+$.air.files.images.resize(original, resized, callback)
+
+$.air.db
+$.air.db.Query //db querying class
+$.air.db.Table //db table class
+$.air.db.Database //db class
+
+$.air.widgets
+$.air.widgets.Widget //base Widget class
+$.air.widgets.List //widget sub class
+$.air.widgets.Form //widget sub class 
+$.air.widgets.WidgetFactory //widget factory
+
+$.air.app
+$.air.app.Model
+
+$.air.app.actions
+$.air.app.actions.Action
+$.air.app.actions.KeyAction
+$.air.app.actions.MouseAction
+
+$.air.app.View
+
+$.air.app.Application
