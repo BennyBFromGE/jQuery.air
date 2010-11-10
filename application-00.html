@@ -1,0 +1,250 @@
+<html>
+    <head>
+        <title>New Adobe AIR Project</title>
+        <script type="text/javascript" src="lib/air/AIRAliases.js"></script>
+        <script type="text/javascript" src="lib/air/AIRIntrospector.js"></script>
+        <script type="text/javascript" src="lib/air/AIRSourceViewer.js"></script>
+		<script type="application/x-shockwave-flash" src="lib/as3corelib.swf"></script>
+	        
+		<script type="text/javascript" src="lib/jquery/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="js/jquery.air.js"></script> 
+    </head>
+    <body>
+    		
+		<script type="text/javascript">
+			$(function() {  
+				var app = $.air({ 
+					key: "bbs2", 
+					models: {
+						contact: { 
+							id: { type: "integer", primaryKey: true, autoIncrement: true },
+							firstName: { type: "varchar", size: 32 },
+							lastName: { type: "varchar", size: 32 },
+							phone: { type: "varchar", size: 32 },
+							email: { type: "varchar", size: 64 }, 
+							website: { type: "varchar", size: 256 },
+							birthDate: { type: "varchar", size: 32 },
+							notes: { type: "varchar" },
+							photo: { type: "blob" }
+						}  
+					}, 
+					views: { 
+						login: { 
+							path: "/view/test/blackbooksafe/login.html",
+							transitions: { 
+								list: function() { 
+									this.from.hide();
+									
+									function onSuccess(result) { 
+										this.to.controls("list").populate(result); 
+										this.to.show();
+									};
+									function onFailure(result) { air.trace(result.error); };
+									
+									air.trace("trying to get all contacts");
+									this.app.models("contact").get({}, $.proxy(onSuccess, this), $.proxy(onFailure, this));
+								}
+							}, 
+							actions: { 
+								keydown: function(keyCode) { 
+									switch(keyCode) { 
+										case air.Keyboard.ENTER:
+										case air.Keyboard.NUMPAD_ENTER:  
+										
+										this.submit(); 
+										break;
+									}
+								}, 
+								click: { 
+									"ok-btn": function() { this.submit(); }
+								}
+							},
+							submit: function() { 
+								var pwd = $.trim($(this.get("pwd")).val());
+								
+								function onOpen() { air.trace("db opened"); this.to("list"); };
+								function onError() { air.trace("db error"); $(this.get("err")).show(); };
+								$(this.app.db).bind("open", $.proxy(onOpen, this));
+								$(this.app.db).bind("error", $.proxy(onError, this));
+								this.app.db.open(pwd);
+							}
+						}, 
+						newUser: { 
+							path: "/view/test/blackbooksafe/newUser.html",
+							transitions: { 
+								list: function() { 
+									this.from.hide();
+									
+									function onSuccess(result) { 
+										this.to.controls("list").populate(result); 
+										this.to.show();
+									};
+									function onFailure(result) { air.trace(result.error); };
+									
+									this.app.model("contact").get({}, $.proxy(onSuccess, this), $.proxy(onFailure, this));
+								}
+							}, 
+							actions: { 
+								keydown: function(keyCode) { 
+									switch(keyCode) { 
+										case air.Keyboard.ENTER:
+										case air.Keyboard.NUMPAD_ENTER:  
+										
+										this.submit(); 
+										break;
+									}
+								}, 
+								click: {
+									"ok-btn": function() { this.submit(); }
+								}
+							}, 
+							submit: function() {   
+								var newPwd = $.trim($(this.get("new-pwd")).val()),
+									confirmPwd = $.trim($(this.get("confirm-pwd")).val());
+								
+								if(newPwd === "" || confirmPwd == "") {
+									$(this.get("error")).html("Password fields required").show();
+								} else if (newPwd !== confirmPwd) {
+									$(this.get("error")).html("Password fields must match").show();
+								} else {
+									function onOpen(){
+										var contactModel = this.app.models("contact"), contact = contactModel.build({
+											firstName: "Ben",
+											lastName: "Barrett",
+											phone: "630-272-0435",
+											email: "benpbarrett@gmail.com",
+											notes: "Sample Data"
+										});
+										
+										contact.save();
+										this.to("list");
+									};
+									function onError(){
+										$(this.get("error")).html("Password incorrect").show();
+									};
+									$(this.app.db).bind("open", $.proxy(onOpen, this));
+									$(this.app.db).bind("error", $.proxy(onError, this));
+									this.app.db.open(newPwd); 
+								}
+							}
+						}, 
+						list: { 
+							path: "/view/test/blackbooksafe/list.html", 
+							transitions: { 
+								detail: function(args) {
+									var activeRecord = args.activeRecord;
+									if(!activeRecord) { return; }
+									 
+									this.to.controls("form").populate(activeRecord);
+									
+									this.from.blenderHide();
+									this.to.zoomShow($.air.bounds.get(this.from.get("list")));
+								}, 
+								edit: function() { 
+									var newRecord = {};
+									
+									this.to.controls("form").populate(newRecord);
+									this.to.get("editPageBorder").scrollTop = 0;
+									this.to.get("firstName").focus();
+									
+									this.from.blenderHide();
+									this.to.zoomShow($.air.bounds.get(this.from.get("listPageBorder")));
+								}  
+							}, 
+							actions: {
+								keydown: function(keyCode) { 
+									var activeRecord = this.controls("list").getActive(); 
+									switch(keyCode) { 
+										case air.Keyboard.ENTER:
+										this.to("detail", { activeRecord: activeRecord });
+										break;
+									}
+								}, 
+								click: { 
+									"ok-btn": function() { }
+								}
+							}
+						}, 
+						detail: { 
+							path: "/view/test/blackbooksafe/detail.html",
+							transitions: {  
+								list: function() { 
+									if(args.deleted === true) { this.from.blenderDissolve(); }
+									
+									var bounds = $.air.bounds.get(this.to.get("listPageBorder"));
+									if(args.activeRecord) { bounds = $.air.bounds.get(args.activeRecord.container); }
+									this.from.zoomHide(bounds);
+									
+									this.to.blenderShow();
+								},
+								detail: function(args) { 
+									var activeRecord = args.activeRecord;
+									if(!activeRecord) { this.from.shake(); return }
+									
+									this.to.controls("form").populate(activeRecord);
+									
+									this.from.flipY(this.to);
+								}, 
+								edit: function(args) { 
+									var activeRecord = args.activeRecord;
+									if(!activeRecord) { return; }
+									
+									this.to.controls("form").populate(activeRecord);
+									this.to.get("editPageBorder").scrollTop = 0;
+									this.to.get("firstName").focus();
+									
+									this.from.flipX(this.to);
+								} 
+							},
+							actions: { 
+								click: { 
+									next: function() { 
+										var activeRecord = $.air.app.data["current"],  nextRecord = $.air.app.data.next(activeRecord);   
+										this.to("detail", { activeRecord: nextRecord });
+									},
+									prev: function() { 
+										var activeRecord = $.air.app.data["current"], prevRecord = $.air.app.data.prev(activeRecord);   
+										this.to("detail", { activeRecord: prevRecord });
+									},
+									edit: function() { this.to("edit", { activeRecord: $.air.app.data["current"] }); }, 
+									del:function() { this.to("list", { deleted: true }); },  
+									close : function() { this.to("list"); }
+								}
+							}
+						}, 
+						edit: { 
+							path: "/view/test/blackbooksafe/edit.html",
+							transitions: { 
+								list: function() { 
+								
+								},
+								detail: function(args) { 
+									var activeRecord = args.activeRecord;
+									if(!activeRecord) { return; }
+									
+									
+								}
+							}, 
+							actions: { 
+								click: { 
+									cancel: function() { this.to("detail"); },
+									save: function() { }
+								}
+							}
+						}
+					}
+				});
+				
+				function onStart() { 
+					air.trace("application started");
+					this.show(this.db.isInitialized() ? "login" : "newUser"); 
+				};
+				function onEnd() { };
+				
+				$(app).bind("start", $.proxy(onStart, app));
+				$(app).bind("end", $.proxy(onEnd, app));
+				//app.start();
+			});
+		</script>
+    </body>
+</html>

@@ -13,7 +13,7 @@
     		
 		<script type="text/javascript">
 			$(function() {  
-				var shell = $.air({
+				var shell = $.air.mvp({
 					db: { key: "bbs2" },
 					models: {
 						contact: {
@@ -34,32 +34,27 @@
 										"</tr></table>";
 							}
 						}
-					}, 
-					services: {
-						contact: {
-							get: function(criteria) {
-								
-							},
-							save: function(contact) {
-								
-							},
-							del: function(id) {
-								
-							}
-						}
 					},
 					views: {
 						login: { 
 							path: "/view/test/blackbooksafe/login.html",
-							position: { x: 70, y: 20 } 
+							position: { x: 70, y: 20 }, 
+							getUsername: function() { return this.$("#username"); }, //function() { return $("#username", this); }
+							getPassword: function() { return this.$("#password"); }, 
+							getOk: function() { return this.$("#oklogin"); }, 
+							getClose: function() { return this.$("#closelogin"); }
 						},
 						newUser: {
 							path: "/view/test/blackbooksafe/new-user.html",
-							position: { x: 70, y: 20 }
+							position: { x: 70, y: 20 },
+							getPassword: function() { return this.$("#password"); }, 
+							getOk: function() { return this.$("#okcreatepass"); }
 						},
 						list: {
 							path: "/view/test/blackbooksafe/list.html",
-							position: { x: 70, y: 20 }
+							position: { x: 70, y: 20 },
+							getList: function() { return this.$("#list"); }, 
+							getListBorder: function() { return this.$("#listPageBorder"); }
 						},
 						detail: {
 							path: "/view/test/blackbooksafe/detail.html",
@@ -67,11 +62,14 @@
 						}, 
 						edit: {
 							path: "/view/test/blackbooksafe/edit.html",
-							position: { x: 120, y: 70 }
+							position: { x: 120, y: 70 }, 
+							getFirstName: function() { return this.$("#editFirstName"); },
+							getLastName: function() { return this.$("#editLastName"); }
 						},
 						confirmDelete: {
 							path: "/view/test/blackbooksafe/confirm-delete.html",
-							position: { x: 120, y: 70 }
+							position: { x: 120, y: 70 },
+							getConfirmationText: function() { return this.$("#confirmText"); } 
 						},
 						about: {
 							path: "/view/test/blackbooksafe/about.html",
@@ -80,252 +78,302 @@
 					},
 					presenters: { 
 						login: {
+							submit: function() { 
+								var username = this.view.getUsername().val(), 
+									password = this.view.getPassword().val();
+								
+								this.trigger(
+									this.authService.login(username, password) ? 
+									"loggedIn" : "logInFailed"
+								);
+							}, 
 							view: {
-								elements: 
-							},
-							submit: function() {
-								//todo: login stuff from below
-								this.trigger("loggedIn");
-							},
-							events: {
-								keydown: {
-									enter: function() { this.submit(); },
-									numpad_enter: function() { this.submit(); }
-								}, 
-								click: {
-									closelogin: function() { this.exit(); }, 
-									oklogin: function() { this.submit(); }
+								events: {
+									keydown: {
+										enter: function() { this.submit(); },
+										numpad_enter: function() { this.submit(); }
+									}, 
+									click: {
+										oklogin: function() { this.submit(); }, 
+										closelogin: function() { this.exit(); }
+									}
 								}
+							},
+							go: function() { 
+//								this.view
+//									.bind("keydown", function(keyCode) {
+//										switch(keyCode) { 
+//											case "enter":
+//											case "numpad_enter":
+//											this.submit();
+//											break;
+//										}
+//									})
+//									.getOk().bind("click", $.proxy(function() {
+//										this.submit();
+//									}, this))
+//									.getClose().bind("click", $.proxy(function() { 
+//										this.submit();
+//									}, this)); 
 							}
 						},
 						newUser: {
-							view: {},
 							submit: function() {
-								//todo: newuser / login stuff
-								this.trigger("loggedIn");
+								var username = this.view.getUsername().val(), 
+									password =  this.view.getPassword().val();
+									
+								this.trigger(
+									this.authService.create(username, password) ? 
+									"userCreated" : "userCreateFailed"
+								);
 							},
-							events: {
-								keydown: {
-									enter: function() { this.submit(); },
-									numpad_enter: function() { this.submit(); }
-								}, 
-								click: {
-									okcreatepass: function() { this.submit(); }
-								}
+							view: {
+								events: {
+									keydown: {
+										enter: function() { this.submit(); },
+										numpad_enter: function() { this.submit(); }
+									}, 
+									click: {
+										okcreatepass: function() { this.submit(); }
+									}
+								} 
+							},
+							go: function() { 
+//								this.view
+//									.bind("keydown", $.proxy(function(keyCode) {
+//										switch(keyCode) { 
+//											case "enter":
+//											case "numpad_enter":
+//											this.submit();
+//											break;
+//										}
+//									}, this))
+//									.getOk().bind("click", $.proxy(function() { 
+//										this.submit();
+//									}, this));
 							}
 						},
 						list: { 
-							view: {
-								elements: {
-									list: function() { return this.get("list"); },
-									listBorder: function() { return this.get("listPageBorder"); }
-								},
-								widgets: {
-									list: function() { return new $.air.ui.List(this.elements("list"), {}); }
-								}
-							},
-							build: function(props) {
-								//async service call to build list
-								
-								var list = this.view.widgets("list");
-								list.bind(this.shell.services("contact").get());
-								
-								if(props && props.id) { 
-									//select item in list 
-									list.select(props.id);
-								}
-							},
+							about: function() { this.trigger("displayAbout"); },
 							add: function() { this.trigger("addContact"); },
-							detail: function() {
-								//todo: get selected record from view list
-								var id = 3;
-								this.trigger("displayContact", {id: id});
+							displayContact: function() { 
+								var listWidget = this.view.getListWidget();
+								
+								this.trigger("displayContact", { 
+									prevId: listWidget.prevIndex, 
+									id: listWidget.selectedIndex, 
+									nextId: listWidget.nextIndex
+								});
 							}, 
-							next: function() {
-								//todo: set next selected record on view list
+							detail: function() { this.displayContact(); }, 
+							next: function() { 
+								this.view.getListWidget().next();
+								this.displayContact();
 							},
 							prev: function() {
 								//todo: set prev selected record on view list
+								this.view.getListWidget().prev();
+								this.displayContact();
 							},
-							about: function() { this.trigger("displayAbout"); },
-							events: { 
-								keydown: {  
-									escape: function() { this.exit(); }, 
-									enter: function(){ this.detail(); },
-									down: function(){ this.next(); }, 
-									up: function(){ this.prev(); }
-								},
-								click: { 
-									close: function(){ this.exit(); }, 
-									minimize: function(){ this.minimize(); }, 
-									viewAbout_btn: function(){ this.about(); }, 
-									add: function(){ this.add(); }
+							view: {
+								events: { 
+									keydown: {  
+										escape: function() { this.exit(); }, 
+										enter: function(){ this.detail(); },
+										down: function(){ this.next(); }, 
+										up: function(){ this.prev(); }
+									},
+									click: { 
+										viewAbout_btn: function(){ this.about(); }, 
+										add: function(){ this.add(); }, 
+										minimize: function(){ this.minimize(); },
+										close: function(){ this.exit(); }
+									}
 								}
+							},
+							go: function() { 
+								var listWidget = this.view.getListWidget()
+								listWidget.bind("click", $.proxy(this.detail, this));
+								
+								function onSuccess(contacts) {
+									listWidget.data(contacts);
+									if(this.data("id")) { listWidget.select(this.data("id")); }	
+								}
+								function onError(ex) { }
+								
+								this.contactService.get({}, $.proxy(onSuccess, this), $.proxy(onError, this));
 							}
 						},
 						detail: { 
+							close: function() {
+								this.trigger("displayContactCanceled");
+							}, 
+							prev: function() { 
+								this.trigger("prevContact");
+							}, 
+							next: function() {
+								this.trigger("nextContact");
+							}, 
+							edit: function() {
+								this.trigger("editContact", this.data("activeContact"));
+							}, 
+							del: function() { 
+								this.trigger("deleteContact", this.data("activeContact"));
+							},
 							view: {
-							},
-							build: function(props) {
-								function onSuccess() {
-									
+								events: {
+									keydown: {
+										escape: function() { this.close(); },
+										left: function() { this.prev(); },
+										right: function() { this.next(); },
+										up: function() { this.edit(); },
+										down: function() { this.edit(); },
+										del: function() { this.del(); }
+									}, 
+									click: {
+										closedetails: function() { this.close(); }, 
+										prevdetails: function() { this.prev(); },
+										nextdetails: function() { this.next(); },
+										backdetails: function() { this.close(); }, 
+										editdetails: function() { this.edit(); }, 
+										deletedetails: function() { this.del(); }
+									}, 
 								}
-								function onFailure() {
+							}, 
+							go: function() {
+								if (this.data("id")) {
 									
+									if (this.data("deleted")) { 
+										function onSuccess(){ this.trigger("contactDeleted"); }
+										function onError(ex){ this.trigger("contactDeleteFailed"); }
+										
+										this.contactService.del({ id: this.data("id") }, $.proxy(onSuccess, this), $.proxy(onError, this));
+									}
+									else {
+										function onSuccess(contact){
+											this.data("activeContact", contact);
+											
+											this.view.getFirstName().val(contact.firstName);
+											this.view.getLastName().val(contact.lastName);
+										}
+										function onError(ex) { }
+										
+										this.contactService.get({ id: this.data("id") }, $.proxy(onSuccess, this), $.proxy(onError, this));
+									}
 								}
-								
-								if(props && props.id) { 
-									//get record 
-								} else {
-									
-								}
-							},
-							events: {
-								keydown: {
-									escape: function() { this.close(); },
-									left: function() { this.prev(); },
-									right: function() { this.next(); },
-									up: function() { this.edit(); },
-									down: function() { this.edit(); },
-									del: function() { this.del(); }
-								}, 
-								click: {
-									closedetails : function() { this.close(); }, 
-									prevdetails: function() { this.prev(); },
-									nextdetails: function() { this.next(); },
-									backdetails: function() { this.close(); }, 
-									editdetails: function() { this.edit(); }, 
-									deletedetails: function() { this.del(); }
-								}, 
 							}
 						}, 
 						edit: {
-							view: {
-								getFirstName: function() { return this.get("editFirstName"); }
-							},
-							build: function(props) {
-								function setForm(item) {
-									//form binding
-									//manual setting  
-								}
-								function setFocus() { $(this.view.getFirstName()).focus(); }
-								
-								if(props && props.id) {
-									this.shell.models("contact").get(props, 
-										function(result) { 
-											setForm.call(this, result);
-											setFocus.call(this);
-										},
-										function() { alert("error!"); }
-									); 
-								} else { 
-									setForm.call(this, this.shell.models("contact").build({}));
-									setFocus.call(this);
-								} 
-							},
-							close: function() {
-								this.trigger("editContactCanceled");
-							},
+							close: function() { this.trigger("editContactCanceled"); },
 							submit: function() {
 								//save contact
-								this.shell.models("contact").save(this.item, 
-									function() {
-										this.trigger("contactUpdated");
-									}, 
-									function() { 
-										alert("error saving contact");
-									}
-								);
+								var contact = this.readForm();
+
+								function onSuccess() { 
+									this.trigger("contactUpdated");
+								}
+								function onError(ex) { alert("error saving contact"); }
+								this.contactService.save(contact, $.proxy(onSuccess, this), $.proxy(onError, this));
 							},
-							events: {
-								keydown: {
-									escape: function() { this.close(); },
-									enter: function() { this.submit(); },
-									numpad_enter: function() { this.submit(); }
-								}, 
-								click: {
-									closeedit : function() { this.close(); }, 
-									canceledit: function() { this.close(); },
-									okedit: function() { this.submit(); }
+							setForm: function(contact) {
+								this.view.getFirstName().val(contact.firstName);
+								this.view.getLastName().val(contact.lastName);
+								//...
+							}, 
+							readForm: function() { 
+								var contact = this.data("activeContact");
+								contact.firstName = this.view.getFirstName().val();
+								contact.lastName = this.view.getLastName().val();
+								//...
+								
+								return contact;
+							},
+							view: {
+								events: {
+									keydown: {
+										escape: function() { this.close(); },
+										enter: function() { this.submit(); },
+										numpad_enter: function() { this.submit(); }
+									}, 
+									click: {
+										closeedit : function() { this.close(); }, 
+										canceledit: function() { this.close(); },
+										okedit: function() { this.submit(); }
+									} 
+								}
+							}, 
+							go: function() {
+								function onSuccess(contact) {
+									this.data("activeContact", contact);
+									this.setForm(contact);
+								}
+								function onError(ex) { }
+									
+								if(this.data("id")) {
+									//edit 
+									this.contactService.get( { id: this.data("id")}, $.proxy(onSuccess, this), $.proxy(onError, this) ); 
+								} else { 
+									//add 
+									this.contactService.create( $.proxy(onSuccess, this), $.proxy(onError, this) );
 								} 
-							}
+							} 
 						},
 						confirmDelete: { 
-							view: {
-								getConfirmationText: function() { return this.get("confirmText"); } 
-							},
-							build: function(props) {
-								this.item = props.item;
-								$(this.view.getConfirmationText()).html(
-									"Are you sure you want to remove "
-									+ this.item.toString() +
-									" from your contact list?"
-								);
-							},
+							getConfirmation: function() {
+								var contact = this.data("activeContact"), 
+									contactName = contact.firstName + " " + contact.lastName;
+								
+								return  "Are you sure you want to remove " + contactName + " from your contact list?";
+							}, 
 							close: function() {
-								this.trigger("deleteCanceled");
+								this.trigger("confirmDeleteCanceled");
 							},
-							submit: function() {
-								this.shell.models("contact").del(this.item, 
-									function() {
-										this.trigger("contactDeleted");
+							submit: function() {  
+								this.trigger("deleteConfirmed"); 
+							},
+							view: { 
+								events: {
+									keydown: {
+										escape: function() { this.close(); },
+										enter: function() { this.submit(); },
+										numpad_enter: function() { this.submit(); }
 									}, 
-									function() { 
-										alert("error deleting contact");
+									click: {
+										cancelconfirm: function() { this.close(); },
+										okconfirm: function() { this.submit(); }
 									}
-								);
+								} 
 							},
-							events: {
-								keydown: {
-									escape: function() { this.close(); },
-									enter: function() { this.submit(); },
-									numpad_enter: function() { this.submit(); }
-								}, 
-								click: {
-									cancelconfirm: function() { this.close(); },
-									okconfirm: function() { this.submit(); }
+							go: function() {
+								function onSuccess(contact){ 
+									this.data("activeContact", contact);
+									
+									this.view.getConfirmationText().html(this.getConfirmation());
 								}
+								function onError(ex) { }
+								
+								this.contactService.get( { id: this.data("id") }, 
+									$.proxy(onSuccess, this), 
+									$.proxy(onError, this)
+								);
 							}
 						},
 						about: {  
-							close: function() { this.trigger("aboutCanceled"); }, 
-							events: {
-								keydown: {
-									escape: function() { this.close(); },
-									enter: function() { this.close(); },
-									numpad_enter: function() { this.close(); }
-								}, 
-								click: {
-									closeabout: function() { this.close(); }, 
-									okabout: function() { this.close(); }
-								} 
-							}
-						}
-					}, 
-					shell: { 
-						list: function() { 
-							this.show(this.presenters("list").build());
-						},
-						detail: function(id) { 
-							this.show(this.presenters("detail").build({ id: id}));
-						},
-						edit: function(id) {
-							this.show(this.presenters("edit").build({id: id}));
-						},
-						about: function() {
-							this.show(this.presenters("about").build());
-						},
-						events: { 
-							displayContact: function(args) { this.detail(args.id); },
-							displayContactCanceled: function(args) { this.list(); },  
-							addContact: function(args) { this.edit(); },
-							editContact: function(args) { this.edit(args.id); },
-							editContactCanceled: function(args) { if(args.id) { this.detail(args.id); } else { this.list(); } },
-							deleteContactCanceled: function(args) { this.list(); }, 
-							contactUpdated: function(args) { this.detail(args.id); },
-							contactDeleted: function(args) { this.list(); },  
-							displayAbout: function(args) { this.about(); },
-							aboutCanceled: function(args) { this.list(); }
+							close: function() { this.trigger("aboutCanceled"); },  
+							view: {
+								events: {
+									keydown: {
+										escape: function(){ this.close(); },
+										enter: function(){ this.close(); },
+										numpad_enter: function(){ this.close(); }
+									},
+									click: {
+										closeabout: function(){ this.close(); },
+										okabout: function(){ this.close(); }
+									}
+								}
+							},
+							go: function() {}
 						}
 					},
 					transitions: {
@@ -345,30 +393,31 @@
 						list: { 
 							detail: function() { 
 								this.from.blenderHide(); 
-								this.to.zoomShow($.air.bounds.get(this.from.get("listPageBorder")));
+								this.to.zoomShow($.air.bounds.get(this.from.view.getListBorder()));
+								//this.to.zoomShow(this.from.view.getListBorder());
 							}, 
 							edit: function() {  
 								this.from.blenderHide();
 
-								var bounds = $.air.bounds.get(this.from.get("listPageBorder"));
+								var bounds = $.air.bounds.get(this.from.view.getListBorder());
 								air.trace("bounds: " + bounds);
 								this.to.zoomShow(bounds); 
+								//this.to.zoomShow(this.from.view.getListBorder());
 							}, 
 							about: function() {
 								this.to.show();
 							}
 						},
 						detail: { 
-							list: function(args) {   
+							list: function() {   
 								//todo: move to presenter
-								if(args) {
-									if (args.deleted) {
-										this.from.blenderDissolve();
-									}
-								}
+								if (this.from.data("deleted")) {
+									this.from.blenderDissolve();
+								} 
 							
-								var bounds = $.air.bounds.get(this.to.get("listPageBorder")); 
+								var bounds = $.air.bounds.get(this.to.view.getListBorder()); 
 								this.from.zoomHide(bounds);
+								//this.from.zoomHide(this.to.view.getListBorder());
 								
 								this.to.blenderShow();
 							},
@@ -381,15 +430,18 @@
 							},
 							confirmDelete: function() { 
 								//todo: change this to general method
+								
 								var stage = htmlLoader.stage;
 								stage.setChildIndex(this.to.htmlLoader, stage.numChildren-1);
+								//this.to.bringToFront();
 								
 								this.to.show();
 							}
 						}, 
 						edit: {
 							list: function() { 
-								this.from.zoomHide($.air.bounds.get(this.to.get("listPageBorder"))); 
+								this.from.zoomHide($.air.bounds.get(this.to.view.getListBorder())); 
+								//this.from.zoomHide(this.to.view.getListBorder());
 								this.to.blenderShow();
 							},
 							detail: function() { 
@@ -397,44 +449,117 @@
 							}
 						},
 						confirmDelete: {  
-							detail: function(args){ 
-								if(!args.confirmed) {
-									this.from.hide();
-									return;	
-								}
-								
-								var current = this.app.data("current");
-								if(!current) return;
-
-								var model = this.app.models("contact"), 
-									parms = { id: current.id }; 
-								//read form - set model properties 
-								function onDel(e, result) { 
-									$(model).unbind("success", $.proxy(onDel, this));
-									
-									var list = this.app.data("list");
-									list.remove(list.selectedIndex); 
-									this.app.removedata("current");
-
-									this.from.hide();
-									this.to.to("list", { deleted: true }); 
-								}
-								
-								function onError(e, text) { 
-									$(model).unbind("success", $.proxy(onError, this));
-									
-									air.trace("model del error");
-								}
-								
-								$(model)
-								.bind("success", $.proxy(onDel, this))
-								.bind("error", $.proxy(onError, this))
-								.get(0).del(parms);  
-							}
+							detail: function(args){ this.from.hide(); }
 						},
 						about: { 
-							list: function(){
-								this.from.hide();
+							list: function(){ this.from.hide(); }
+						}
+					}, 
+					services: {
+						auth: { 
+							create: function(password) { 
+							
+							}, 
+							login: function(username, password) { 
+								return true;	
+							}
+						}, 
+						contact: {
+							get: function(criteria) {
+								
+							},
+							save: function(contact) {
+								
+							},
+							del: function(id) {
+								
+							}
+						}
+					}, 
+					shell: { 
+						login: function() {
+							this.stage(this.presenters("login", { view: this.views("login"), authService: this.services("auth") }) );
+						}, 
+						newUser: function() {
+							this.stage(this.presenters("newUser", { view: this.views("newUser"), authService: this.services("auth") }));
+						}, 
+						about: function() { 
+							this.stage(this.presenters("about", { view: this.views("about") })); 
+						},
+						list: function(args) { 
+							var dependencies = { 
+								view: this.views("list"), 
+								contactService: this.services("contact"), 
+								data: args || {} 
+							};
+							this.stage(this.presenters("list", dependencies));
+						},
+						detail: function(args) {  
+							var dependencies = { 
+								view: this.views("detail"), 
+								contactService: this.services("contact"), 
+								data: args || {}
+							};
+							this.stage(this.presenters("detail", dependencies));
+						},
+						edit: function(args) { 
+							var dependencies = { 
+								view: this.views("edit"), 
+								contactService: this.services("contact"), 
+								data: args || {}
+							};
+							this.stage(this.presenters("edit", dependencies));
+						},
+						confirmDelete: function(args) {
+							var dependencies = {
+								view: this.views("confirmDelete"),
+								contactService: this.services("contact"),
+								data: args || {}
+							};
+							this.stage(this.presenters("confirmDelete", dependencies));
+						}, 
+						prev: function() { this.staged("list").prev(); }, 
+						next: function() { this.staged("list").next(); }, 
+						bus: {  
+							events: { 
+								//login & newuser events
+								loggedIn: function() { this.list(); }, //login => list
+								logInFailed: function() { }, 
+								
+								userCreated: function() { this.list(); }, //new user => list
+								userCreateFailed: function() { }, 
+								
+								//list events
+								displayAbout: function(args) { this.about(); }, //list => about
+								displayContact: function(args) { this.detail(args); }, //list => detail
+								addContact: function(args) { this.edit(); }, //list => add
+								
+								//edit events
+								contactUpdated: function(args) { this.detail(args); }, //edit => detail
+								editContactCanceled: function(args) { if(args.id) { this.detail(args); } else { this.list(); } }, //edit => detail/list
+								
+								//display events
+								displayContactCanceled: function(args) { this.list(args); }, //detail => list
+								prevContact: function(args) { this.prev(); }, //detail => detail (prev)
+								nextContact: function(args) { this.next(); }, //detail => detail (next)
+								editContact: function(args) { this.edit(args); }, //detail => edit
+								deleteContact: function(args) { this.confirmDelete(args); }, //detail => confirm delete
+								contactDeleted: function(args) { this.list(args); },  //detail => list
+								
+								//confirm delete events
+								deleteConfirmed: function(args) { this.detail( $.extend({ deleted: true }, args || {} )); }, //confirm delete => detail (contact deleted)
+								confirmDeleteCanceled: function(args) { this.detail(args); }, //confirm delete => detail 
+								
+								//about events
+								aboutCanceled: function(args) { this.list(args); } //about => list
+							}
+						},
+						go: function() {
+							if (this.db.isInitialized()) {
+								this.login();
+							}
+							else {
+								this.newUser();
 							}
 						}
 					}
