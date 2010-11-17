@@ -86,36 +86,18 @@
 									this.authService.login(username, password) ? 
 									"loggedIn" : "logInFailed"
 								);
-							}, 
-							view: {
-								events: {
-									keydown: {
-										enter: function() { this.submit(); },
-										numpad_enter: function() { this.submit(); }
-									}, 
-									click: {
-										oklogin: function() { this.submit(); }, 
-										closelogin: function() { this.exit(); }
-									}
+							},  
+							events: {
+								keydown: {
+									enter: function() { this.submit(); },
+									numpad_enter: function() { this.submit(); }
+								}, 
+								click: {
+									"#oklogin": function() { this.submit(); }, 
+									"#closelogin": function() { this.exit(); }
 								}
 							},
-							go: function() { 
-//								this.view
-//									.bind("keydown", function(keyCode) {
-//										switch(keyCode) { 
-//											case "enter":
-//											case "numpad_enter":
-//											this.submit();
-//											break;
-//										}
-//									})
-//									.getOk().bind("click", $.proxy(function() {
-//										this.submit();
-//									}, this))
-//									.getClose().bind("click", $.proxy(function() { 
-//										this.submit();
-//									}, this)); 
-							}
+							go: function() {}
 						},
 						newUser: {
 							submit: function() {
@@ -126,32 +108,17 @@
 									this.authService.create(username, password) ? 
 									"userCreated" : "userCreateFailed"
 								);
+							}, 
+							events: {
+								keydown: {
+									enter: function() { this.submit(); },
+									numpad_enter: function() { this.submit(); }
+								}, 
+								click: {
+									"#okcreatepass": function() { this.submit(); }
+								}
 							},
-							view: {
-								events: {
-									keydown: {
-										enter: function() { this.submit(); },
-										numpad_enter: function() { this.submit(); }
-									}, 
-									click: {
-										okcreatepass: function() { this.submit(); }
-									}
-								} 
-							},
-							go: function() { 
-//								this.view
-//									.bind("keydown", $.proxy(function(keyCode) {
-//										switch(keyCode) { 
-//											case "enter":
-//											case "numpad_enter":
-//											this.submit();
-//											break;
-//										}
-//									}, this))
-//									.getOk().bind("click", $.proxy(function() { 
-//										this.submit();
-//									}, this));
-							}
+							go: function() {}
 						},
 						list: { 
 							about: function() { this.trigger("displayAbout"); },
@@ -175,20 +142,18 @@
 								this.view.getListWidget().prev();
 								this.displayContact();
 							},
-							view: {
-								events: { 
-									keydown: {  
-										escape: function() { this.exit(); }, 
-										enter: function(){ this.detail(); },
-										down: function(){ this.next(); }, 
-										up: function(){ this.prev(); }
-									},
-									click: { 
-										viewAbout_btn: function(){ this.about(); }, 
-										add: function(){ this.add(); }, 
-										minimize: function(){ this.minimize(); },
-										close: function(){ this.exit(); }
-									}
+							events: { 
+								keydown: {  
+									escape: function() { this.exit(); }, 
+									enter: function(){ this.detail(); },
+									down: function(){ this.next(); }, 
+									up: function(){ this.prev(); }
+								},
+								click: { 
+									"#viewAbout_btn": function(){ this.about(); }, 
+									"#add": function(){ this.add(); }, 
+									"#minimize": function(){ this.minimize(); },
+									"#close": function(){ this.exit(); }
 								}
 							},
 							go: function() { 
@@ -220,25 +185,23 @@
 							del: function() { 
 								this.trigger("deleteContact", this.data("activeContact"));
 							},
-							view: {
-								events: {
-									keydown: {
-										escape: function() { this.close(); },
-										left: function() { this.prev(); },
-										right: function() { this.next(); },
-										up: function() { this.edit(); },
-										down: function() { this.edit(); },
-										del: function() { this.del(); }
-									}, 
-									click: {
-										closedetails: function() { this.close(); }, 
-										prevdetails: function() { this.prev(); },
-										nextdetails: function() { this.next(); },
-										backdetails: function() { this.close(); }, 
-										editdetails: function() { this.edit(); }, 
-										deletedetails: function() { this.del(); }
-									}, 
-								}
+							events: {
+								keydown: {
+									escape: function() { this.close(); },
+									left: function() { this.prev(); },
+									right: function() { this.next(); },
+									up: function() { this.edit(); },
+									down: function() { this.edit(); },
+									del: function() { this.del(); }
+								}, 
+								click: {
+									"#closedetails": function() { this.close(); }, 
+									"#prevdetails": function() { this.prev(); },
+									"#nextdetails": function() { this.next(); },
+									"#backdetails": function() { this.close(); }, 
+									"#editdetails": function() { this.edit(); }, 
+									"#deletedetails": function() { this.del(); }
+								}, 
 							}, 
 							go: function() {
 								if (this.data("id")) {
@@ -287,20 +250,18 @@
 								//...
 								
 								return contact;
-							},
-							view: {
-								events: {
-									keydown: {
-										escape: function() { this.close(); },
-										enter: function() { this.submit(); },
-										numpad_enter: function() { this.submit(); }
-									}, 
-									click: {
-										closeedit : function() { this.close(); }, 
-										canceledit: function() { this.close(); },
-										okedit: function() { this.submit(); }
-									} 
-								}
+							}, 
+							events: {
+								keydown: {
+									escape: function() { this.close(); },
+									enter: function() { this.submit(); },
+									numpad_enter: function() { this.submit(); }
+								}, 
+								click: {
+									"#closeedit" : function() { this.close(); }, 
+									"#canceledit": function() { this.close(); },
+									"#okedit": function() { this.submit(); }
+								} 
 							}, 
 							go: function() {
 								function onSuccess(contact) {
@@ -330,19 +291,17 @@
 							},
 							submit: function() {  
 								this.trigger("deleteConfirmed"); 
-							},
-							view: { 
-								events: {
-									keydown: {
-										escape: function() { this.close(); },
-										enter: function() { this.submit(); },
-										numpad_enter: function() { this.submit(); }
-									}, 
-									click: {
-										cancelconfirm: function() { this.close(); },
-										okconfirm: function() { this.submit(); }
-									}
-								} 
+							}, 
+							events: {
+								keydown: {
+									escape: function() { this.close(); },
+									enter: function() { this.submit(); },
+									numpad_enter: function() { this.submit(); }
+								}, 
+								click: {
+									"#cancelconfirm": function() { this.close(); },
+									"#okconfirm": function() { this.submit(); }
+								}
 							},
 							go: function() {
 								function onSuccess(contact){ 
@@ -359,18 +318,16 @@
 							}
 						},
 						about: {  
-							close: function() { this.trigger("aboutCanceled"); },  
-							view: {
-								events: {
-									keydown: {
-										escape: function(){ this.close(); },
-										enter: function(){ this.close(); },
-										numpad_enter: function(){ this.close(); }
-									},
-									click: {
-										closeabout: function(){ this.close(); },
-										okabout: function(){ this.close(); }
-									}
+							close: function() { this.trigger("aboutCanceled"); }, 
+							events: {
+								keydown: {
+									escape: function(){ this.close(); },
+									enter: function(){ this.close(); },
+									numpad_enter: function(){ this.close(); }
+								},
+								click: {
+									"#closeabout": function(){ this.close(); },
+									"#okabout": function(){ this.close(); }
 								}
 							},
 							go: function() {}
@@ -477,42 +434,38 @@
 						}
 					}, 
 					shell: { 
-						login: function() {
-							this.stage(this.presenters("login", { view: this.views("login"), authService: this.services("auth") }) );
+						login: function() { 
+							this.stage(this.presenters("login", { authService: this.services("auth") }) );
 						}, 
 						newUser: function() {
-							this.stage(this.presenters("newUser", { view: this.views("newUser"), authService: this.services("auth") }));
+							this.stage(this.presenters("newUser", { authService: this.services("auth") }));
 						}, 
 						about: function() { 
-							this.stage(this.presenters("about", { view: this.views("about") })); 
+							this.stage(this.presenters("about", { })); 
 						},
 						list: function(args) { 
-							var dependencies = { 
-								view: this.views("list"), 
+							var dependencies = {  
 								contactService: this.services("contact"), 
 								data: args || {} 
 							};
 							this.stage(this.presenters("list", dependencies));
 						},
 						detail: function(args) {  
-							var dependencies = { 
-								view: this.views("detail"), 
+							var dependencies = {  
 								contactService: this.services("contact"), 
 								data: args || {}
 							};
 							this.stage(this.presenters("detail", dependencies));
 						},
 						edit: function(args) { 
-							var dependencies = { 
-								view: this.views("edit"), 
+							var dependencies = {  
 								contactService: this.services("contact"), 
 								data: args || {}
 							};
 							this.stage(this.presenters("edit", dependencies));
 						},
 						confirmDelete: function(args) {
-							var dependencies = {
-								view: this.views("confirmDelete"),
+							var dependencies = { 
 								contactService: this.services("contact"),
 								data: args || {}
 							};
@@ -520,39 +473,37 @@
 						}, 
 						prev: function() { this.staged("list").prev(); }, 
 						next: function() { this.staged("list").next(); }, 
-						bus: {  
-							events: { 
-								//login & newuser events
-								loggedIn: function() { this.list(); }, //login => list
-								logInFailed: function() { }, 
-								
-								userCreated: function() { this.list(); }, //new user => list
-								userCreateFailed: function() { }, 
-								
-								//list events
-								displayAbout: function(args) { this.about(); }, //list => about
-								displayContact: function(args) { this.detail(args); }, //list => detail
-								addContact: function(args) { this.edit(); }, //list => add
-								
-								//edit events
-								contactUpdated: function(args) { this.detail(args); }, //edit => detail
-								editContactCanceled: function(args) { if(args.id) { this.detail(args); } else { this.list(); } }, //edit => detail/list
-								
-								//display events
-								displayContactCanceled: function(args) { this.list(args); }, //detail => list
-								prevContact: function(args) { this.prev(); }, //detail => detail (prev)
-								nextContact: function(args) { this.next(); }, //detail => detail (next)
-								editContact: function(args) { this.edit(args); }, //detail => edit
-								deleteContact: function(args) { this.confirmDelete(args); }, //detail => confirm delete
-								contactDeleted: function(args) { this.list(args); },  //detail => list
-								
-								//confirm delete events
-								deleteConfirmed: function(args) { this.detail( $.extend({ deleted: true }, args || {} )); }, //confirm delete => detail (contact deleted)
-								confirmDeleteCanceled: function(args) { this.detail(args); }, //confirm delete => detail 
-								
-								//about events
-								aboutCanceled: function(args) { this.list(args); } //about => list
-							}
+						events: { 
+							//login & newuser events
+							loggedIn: function() { this.list(); }, //login => list
+							logInFailed: function() { }, 
+							
+							userCreated: function() { this.list(); }, //new user => list
+							userCreateFailed: function() { }, 
+							
+							//list events
+							displayAbout: function(args) { this.about(); }, //list => about
+							displayContact: function(args) { this.detail(args); }, //list => detail
+							addContact: function(args) { this.edit(); }, //list => add
+							
+							//edit events
+							contactUpdated: function(args) { this.detail(args); }, //edit => detail
+							editContactCanceled: function(args) { if(args.id) { this.detail(args); } else { this.list(); } }, //edit => detail/list
+							
+							//display events
+							displayContactCanceled: function(args) { this.list(args); }, //detail => list
+							prevContact: function(args) { this.prev(); }, //detail => detail (prev)
+							nextContact: function(args) { this.next(); }, //detail => detail (next)
+							editContact: function(args) { this.edit(args); }, //detail => edit
+							deleteContact: function(args) { this.confirmDelete(args); }, //detail => confirm delete
+							contactDeleted: function(args) { this.list(args); },  //detail => list
+							
+							//confirm delete events
+							deleteConfirmed: function(args) { this.detail( $.extend({ deleted: true }, args || {} )); }, //confirm delete => detail (contact deleted)
+							confirmDeleteCanceled: function(args) { this.detail(args); }, //confirm delete => detail 
+							
+							//about events
+							aboutCanceled: function(args) { this.list(args); } //about => list
 						},
 						go: function() {
 							if (this.db.isInitialized()) {

@@ -124,74 +124,43 @@
         }
     };
     
-    /*** jQuery.air.HTMLLoader - htmlLoader utility ***/
-//    $air.HTMLLoader = {
-//        create: function(config){
-//            var loader = new air.HTMLLoader();
-//            loader.x = config.x || 20;
-//            loader.y = config.y || 20;
-//            loader.paintsDefaultBackground = config.paintsDefaultBackground || false;
-//            loader.visible = config.visible || false;
-//            
-//            var filterFactory = new $air.filters.FilterFactory();
-//            loader.filters = [filterFactory.create("shadow").filter];
-//            
-//            return loader;
-//        },
-//        fitToContent: function(loader){
-//            loader.width = loader.window.document.width;
-//            loader.height = loader.window.document.height;
-//        },
-//        copyAsBitmap: function(loader){
-//            var data = new air.BitmapData(loader.width, loader.height, true, 0);
-//            data.draw(loader);
-//            
-//            return new air.Bitmap(data);
-//        }
-//    };
-	
-	$air.HtmlLoader = function(config) {
-		this.config =  $.extend({}, {  
-			x: 20, y: 20,  
-			paintsDefaultBackground: false, 
-			visible: false,  
-		}, partial || {}); 
+    /*** jQuery.air.HTMLLoader - htmlLoader utility ***/ 
+	$air.loaders = {
+		html: {
+			create: function(config){
+				config =  $.extend({}, {  
+					x: 20, y: 20,  
+					paintsDefaultBackground: false, 
+					visible: false,  
+				}, config || {}); 
 		
-		this.loader = new air.HTMLLoader();
-		
-		this.init();
-	};
-	$air.HtmlLoader.prototype = (function() { 
-        function onLoadComplete(e){
-            this.fitToContent(); 
-            
-			$(this).trigger("loaded");
-        };
-	
-		return {
-			init: function(){
-				$.each(this.config, $.proxy(function(key, val){ this.loader[key] = value; }, this));
+	            var loader = new air.HTMLLoader();
+	            loader.x = config.x;
+	            loader.y = config.y;
+	            loader.paintsDefaultBackground = config.paintsDefaultBackground;
+	            loader.visible = config.visible;
+	            
+	            var filterFactory = new $air.filters.FilterFactory();
+	            loader.filters = [filterFactory.create("shadow").filter]; 
 				
-				var filterFactory = new $air.filters.FilterFactory();
-				this.loader.filters = [filterFactory.create("shadow").filter]; 
-				
-				this.loader.addEventListener(air.Event.COMPLETE, $.proxy(onLoadComplete, this)); 
-			},
-			load: function() {
-				this.loader.load(new air.URLRequest(this.path));
-			}, 
-			fitToContent: function(){
-				this.loader.width = this.loader.window.document.width;
-				this.loader.height = this.loader.window.document.height;
-			},
-			copyAsBitmap: function(){
-				var data = new air.BitmapData(this.loader.width, this.loader.height, true, 0);
-				data.draw(this.loader);
-				
-				return new air.Bitmap(data);
+				loader.addEventListener(air.Event.COMPLETE, $.proxy(function(){
+	            	$air.loaders.html.fitToContent(this); 
+			            
+					$(this).trigger("loaded");
+		        }, loader)); 
+	            
+	            return loader;
+	        },
+	        fitToContent: function(loader){
+	            loader.width = loader.window.document.width;
+	            loader.height = loader.window.document.height;
+	        },
+	        copyAsBitmap: function(loader){
+				var data = new air.BitmapData(loader.width, loader.height, true, 0);
+				data.draw(loader);
 			}
-		};
-	})();
+		}
+	};
     
     /*** jQuery.air.filters ***/
     $air.filters = {};
@@ -263,16 +232,10 @@
     $air.anim.Tween.fps = 30;
     $air.anim.Tween.prototype = (function(){
     
-        return { 
-//            onStart: null,
-//            onEffect: null,
-//            onFinish: null,
-
+        return {   
             start: function(reversed){
                 if (this.running) { this.finish(false); }
-                
-//                if (!this.onEffect) { return; }
-                
+
                 this.reversed = reversed;
                 this.running = true;
                 
@@ -281,11 +244,7 @@
                 var duration = this.config.duration, fps = $air.anim.Tween.fps, startTime = new Date().getTime();
                 
 				$(this).trigger("started");
-				
-//                if (this.onStart) {
-//                    this.onStart();
-//                }
-                
+
 				//air.trace("starting tween"); 
 				//air.trace(begin); air.trace(end); air.trace(duration);
                 currentEffect = transitionEffect(0, begin, end - begin, duration); 
@@ -318,11 +277,7 @@
                 this.interval = null;
                 this.running = false;
 				
-				$(this).trigger("finished", interactive);
-				
-//                if (this.onFinish) {
-//                    this.onFinish(interactive);
-//                }
+				$(this).trigger("finished", interactive); 
             }
         };
     })();
@@ -384,7 +339,7 @@
             duration: 200
         }, config || {});
 
-        this.tween = null; 
+        this.tween = null;  
     };
     $air.fx.Effect.prototype = { 
         start: function(reversed) {
@@ -450,48 +405,7 @@
 	            this.secondFaceRotation.reset();
 	            this.firstFace.stage.mouseChildren = true;
 	            this.secondFace.stage.mouseChildren = true;
-			}, this));
-		
-			
-//        var firstFace = this.config.htmlLoader, 
-//			secondFace = this.config.secondHtmlLoader, 
-//			firstFaceRotation = new $air.transform.Rotation(firstFace), 
-//			secondFaceRotation = new $air.transform.Rotation(secondFace), 
-//			axis = this.config.axis, 
-//			duration = this.config.duration, 
-//			startValue = 0, 
-//			endValue = -180, 
-//			switchValue = (startValue + endValue) / 2, 
-//			flipped = false;
-		
-//        this.tween.onStart = function(){
-//            firstFace.stage.mouseChildren = false;
-//            secondFace.stage.mouseChildren = false;
-//            
-//            firstFace.visible = !this.reversed;
-//            secondFace.visible = this.reversed;
-//            
-//            flipped = false;
-//        };
-//        this.tween.onEffect = function(value, percent){
-//            var shouldFlipLoaders = percent > 0.5;
-//            var rotation = !this.reversed ? value : endValue - (value - startValue);
-//            
-//            firstFaceRotation.rotate(rotation, axis);
-//            secondFaceRotation.rotate(rotation + 180, axis);
-//			
-//            if (shouldFlipLoaders && !flipped) {
-//                firstFace.visible = this.reversed;
-//                secondFace.visible = !this.reversed;
-//                flipped = true;
-//            }
-//        };
-//        this.tween.onFinish = function(){
-//            firstFaceRotation.reset();
-//            secondFaceRotation.reset();
-//            firstFace.stage.mouseChildren = true;
-//            secondFace.stage.mouseChildren = true;
-//        };
+			}, this)); 
     };
     $air.fx.Flip.prototype = new $air.fx.Effect();
     $air.fx.Flip.prototype.constructor = $air.fx.Flip; 
@@ -536,7 +450,7 @@
 	            this.firstFaceParent.removeChild(this.firstFace);
 	            this.filteredSprite.addChild(this.firstFace);
 	            
-	            this.secondFace = this.firstFace.copyAsBitmap();
+	            this.secondFace = $air.loaders.html.copyAsBitmap(this.firstFace); 
 	            this.filteredSprite.addChild(this.secondFace);
 	            this.secondFaceRotation = new $air.transform.Rotation(this.secondFace); 
 	            this.secondFaceRotation.position = this.firstFaceRotation.position;
@@ -581,84 +495,7 @@
 	            this.secondFace.bitmapData.dispose();
 	            this.secondFace = null;
 	            this.oldFilters = null;
-			}, this)); 
-			
-//			var config = this.config, 
-//			firstFace = config.htmlLoader, 
-//			firstFaceParent = null, 
-//			secondFace = null, 
-//			axis = config.axis, 
-//			duration = config.duration, 
-//			startValue = 0, 
-//			endValue = -90, 
-//			flipped = false, 
-//			firstFaceRotation = new $air.transform.Rotation(firstFace), 
-//			secondFaceRotation = null, 
-//			oldFilters, 
-//			filteredSprite;
-//        
-//        firstFaceRotation.rotationCenter.z = firstFace.width / 2;
-//		this.tween.onStart = function(){  
-//            firstFace.stage.mouseChildren = false;
-//            firstFace.visible = true;
-//            
-//            oldFilters = firstFace.filters;
-//            firstFace.filters = [];
-//            
-//            filteredSprite = new runtime.flash.display.Sprite();
-//            filteredSprite.filters = oldFilters;
-//            
-//            firstFaceParent = firstFace.parent;
-//            
-//            firstFaceParent.addChild(filteredSprite);
-//            firstFaceParent.removeChild(firstFace);
-//            filteredSprite.addChild(firstFace);
-//            
-//            secondFace = $air.HTMLLoader.copyAsBitmap(firstFace);
-//            filteredSprite.addChild(secondFace);
-//            secondFaceRotation = new $air.transform.Rotation(secondFace); 
-//            secondFaceRotation.position = firstFaceRotation.position;
-//            secondFaceRotation.rotationCenter.z = secondFace.width / 2;
-//            
-//            // change to the other half now, as we already have a 
-//            // snapshot of the old image
-//            //if (this.onHalf) {
-//              //  this.onHalf();
-//            //}
-//            
-//            flipped = false;
-//        };
-//        this.tween.onEffect = function(value, percent){
-//            var shouldFlipLoaders = percent > 0.5;
-//            var rotation = !this.reversed ? value : endValue - (value - startValue);
-//            
-//            if (this.reversed) {
-//                firstFaceRotation.rotate(rotation, axis);
-//                secondFaceRotation.rotate(rotation + 90, axis);
-//            }
-//            else {
-//                firstFaceRotation.rotate(rotation + 90, axis);
-//                secondFaceRotation.rotate(rotation, axis);
-//            }
-//            if (shouldFlipLoaders && !flipped) {
-//                filteredSprite.swapChildren(firstFace, secondFace);
-//                flipped = true;
-//            }
-//        };
-//        this.tween.onFinish = function(){
-//            filteredSprite.removeChild(secondFace);
-//            filteredSprite.removeChild(firstFace);
-//            filteredSprite.filters = null;
-//            firstFaceParent.removeChild(filteredSprite);
-//            firstFaceParent.addChild(firstFace);
-//            firstFaceRotation.reset();
-//            firstFace.filters = oldFilters;
-//            firstFace.stage.mouseChildren = true;
-//            filteredSprite = null;
-//            secondFace.bitmapData.dispose();
-//            secondFace = null;
-//            oldFilters = null;
-//        };
+			}, this));  
     };
     $air.fx.SingleFlip.prototype = new $air.fx.Effect();
     $air.fx.SingleFlip.prototype.constructor = $air.fx.SingleFlip; 
@@ -718,52 +555,7 @@
 	                this.firstFace.visible = false;
 	            }
 	            this.firstFace.stage.mouseChildren = true;
-			}, this));
-
-		
-//        var config = this.config, 
-//			firstFace = config.htmlLoader, 
-//			duration = config.duration; 
-//        this.tween.originalBounds = {
-//            x: firstFace.x,
-//            y: firstFace.y,
-//            width: firstFace.width,
-//            height: firstFace.height
-//        };
-//        this.tween.onStart = function(){
-//            firstFace.stage.mouseChildren = false;
-//            
-//            if (!this.reversed) {
-//                firstFace.visible = true;
-//            }
-//        };
-//        this.tween.onEffect = function(value){
-//            var transition = this.reversed ? value : 1 - value;
-//			
-//			air.trace("zooooming");  
-//			
-//            var newBounds = $air.bounds.resize(transition, this.bounds, this.originalBounds);
-//            firstFace.x = newBounds.x;
-//            firstFace.y = newBounds.y;
-//            firstFace.scaleX = newBounds.width / this.originalBounds.width;
-//            firstFace.scaleY = newBounds.height / this.originalBounds.height;
-//            firstFace.alpha = 1 - transition;
-//        };
-//        this.tween.onFinish = function(){
-//			air.trace("zoooom finish");
-//			
-//            var originalBounds = this.originalBounds;
-//            firstFace.x = originalBounds.x;
-//            firstFace.y = originalBounds.y;
-//            firstFace.scaleX = 1;
-//            firstFace.scaleY = 1;
-//            firstFace.alpha = 1;
-//            
-//            if (this.reversed) {
-//                firstFace.visible = false;
-//            }
-//            firstFace.stage.mouseChildren = true;
-//        };
+			}, this)); 
     };
     $air.fx.Zoom.prototype = new $air.fx.Effect();
     $air.fx.Zoom.prototype.constructor = $air.fx.Zoom; 
@@ -803,14 +595,31 @@
             duration: 200,
             transition: $air.anim.linear
         }, config || {}); 
+		
+		this.firstFace = this.config.htmlLoader;
+		this.shader = this.config.shader;
+		this.shaderConfig = this.config.shaderConfig;
 
-        this.tween = null;
-        this.init();
+        var loader = new air.URLLoader();
+        loader.dataFormat = air.URLLoaderDataFormat.BINARY;
+        loader.addEventListener(air.Event.COMPLETE, $.proxy(function(){
+            this.config.shader = new air.Shader(loader.data);
+        }, this));
+        loader.load(new air.URLRequest(this.config.url));
+        
+        this.tween = new $air.anim.Tween({
+			begin: 0,
+			end: 1,
+			duration: this.config.duration,
+			effect: this.config.transition
+		});
+        this.tween.keepTheEffect = false;
+        this.tween.hideOnFinish = false;
+        this.tween.disableInteraction = false;
     };
-    $air.fx.blender.Effect.prototype = (function(){
-    
+    $air.fx.blender.Effect.prototype = (function(){ 
         //Private methods
-        function resetFilters(target, filters){
+		function resetFilters(target, filters) {
             var oldFilters = target.filters;
             for (var i = 0; i < oldFilters.length; i++) {
                 var oldFilter = oldFilters[i];
@@ -819,84 +628,59 @@
                 }
             }
             target.filters = filters;
-        }
-        
-        function loadShader(){ }
-        function applyShader(target, shader, shaderConfig){
-            if (!shader) {
-                return;
-            }
-            if (shader.data.width) {
-                shader.data.width.value[0] = target.width;
-                shader.data.height.value[0] = target.height;
-            }
-            for (var key in shaderConfig) {
-                shader.data[key].value[0] = shaderConfig[key];
-            }
-            
-            // let the shader always be the first filter 
-            var shaderFilter = new air.ShaderFilter(shader);
-            shaderFilter.leftExtension = shaderFilter.topExtension = shaderFilter.bottomExtension = shaderFilter.rightExtension = 30;
-            
-            resetFilters(target, [shaderFilter]);
-        }
-        
+		}
+		
+		function applyShader(target, shader, shaderConfig) {
+	        if (!shader) { return; }
+	        if (shader.data.width) {
+	            shader.data.width.value[0] = target.width;
+	            shader.data.height.value[0] = target.height;
+	        }
+	        for (var key in shaderConfig) {
+	            shader.data[key].value[0] = shaderConfig[key];
+	        }
+	        
+	        // let the shader always be the first filter 
+	        var shaderFilter = new air.ShaderFilter(shader);
+	        shaderFilter.leftExtension = shaderFilter.topExtension = shaderFilter.bottomExtension = shaderFilter.rightExtension = 30;
+	        
+			resetFilters(target, [shaderFilter]);
+		}
+		
         //Private events
+		function onStart() { }
+		function onTween(value, percent) {
+            // apply the blender effct
+			var reversed = this.tween.reversed;
+            var transition = reversed ? 1 - value : value;
+            
+			var shaderConfig = $.extend({}, {
+                transition: transition
+            }, this.shaderConfig || {}); 
+			
+			applyShader(this.firstFace, this.shader, shaderConfig);
+		}
+		function onFinish() {
+            if (this.hideOnFinish) {
+                this.firstFace.visible = false;
+            }
+            
+            if (!this.keepTheEffect) {
+                this.resetFilters(this.firstFace, []); 
+            }
+            
+            if (this.disableInteraction) {
+                window.htmlLoader.stage.mouseChildren = true;
+            }
+		}
         
-        return {
-            init: function(){
-                if (this.config.url === "") {
-                    return;
-                }
-                
-                var config = this.config;
-                
-                var loader = new air.URLLoader();
-                loader.dataFormat = air.URLLoaderDataFormat.BINARY;
-                loader.addEventListener(air.Event.COMPLETE, function(){
-                    config.shader = new air.Shader(loader.data);
-                });
-                loader.load(new air.URLRequest(config.url));
-                
-                this.tween = new $air.anim.Tween({
-					begin: 0,
-					end: 1,
-					duration: config.duration,
-					effect: config.transition
-				});
-                this.tween.keepTheEffect = false;
-                this.tween.hideOnFinish = false;
-                this.tween.disableInteraction = false;
-                
-                this.tween.onStart = function(){
-                    if (this.disableInteraction) {
-                        window.htmlLoader.stage.mouseChildren = false;
-                    }
-                };
-                this.tween.onEffect = function(value){
-                    // apply the blender effct
-                    var firstFace = config.htmlLoader, shader = config.shader, shaderConfig = config.shaderConfig, transition = this.reversed ? 1 - value : value;
-                    var shaderConfig = $.extend({}, {
-                        transition: transition
-                    }, shaderConfig || {}); 
-					
-                    applyShader(firstFace, shader, shaderConfig);
-                };
-                this.tween.onFinish = function(value){
-                    var firstFace = config.htmlLoader;
-                    if (this.hideOnFinish) {
-                        firstFace.visible = false;
-                    }
-                    
-                    if (!this.keepTheEffect) {
-                        resetFilters(firstFace, []);
-                    }
-                    
-                    if (this.disableInteraction) {
-                        window.htmlLoader.stage.mouseChildren = true;
-                    }
-                };
-            },
+        return { 
+			wire: function() {
+				$(this.tween)
+					.bind("started", $.proxy(onStart, this))
+					.bind("tweening", $.proxy(onTween, this))
+					.bind("finished", $.proxy(onFinish, this)); 
+			}, 
 	        start: function(reversed) {
 	            if (this.tween) {
 	                this.tween.start(reversed);
@@ -985,23 +769,7 @@
             }
         };
     })();
-    
-    $air.fx.blender.EffectManager = function(){
-        this.fx = [];
-    };
-    $air.fx.blender.EffectManager.prototype = (function(){
-    
-        return {
-            get: function(type){
-                if (!this.fx[type]) {
-                    var factory = $air.fx.blender.EffectFactory();
-                    this.fx[type] = factory.create(type);
-                }
-                return this.fx[type];
-            }
-        };
-    })();
-	
+
 	/*** jQuery.air.files ***/
 	$air.files = {
 		temp: function(id) { 
@@ -1096,6 +864,32 @@
     
     /*** jQuery.air.app ***/
     $air.app = {};
+	
+	/* FX */ 
+    $air.app.EffectCache = function(){
+        this.fx = {};
+    };
+    $air.app.EffectCache.prototype = (function(){
+    
+        return { 
+            get3DEffect: function(key, type, config){
+               	key = key + "-3D-" + type; 
+                if (!this.fx[key]) {
+                    var factory = new $air.fx.EffectFactory();
+                    this.fx[key] = factory.create(type, config);
+				}
+                return this.fx[key];
+            },
+            getBlenderEffect: function(key, type, config){
+				key = key + "-blender-" + type;
+               	if (!this.fx[key]) {
+                    var factory = new $air.fx.blender.EffectFactory();
+                    this.fx[key] = factory.create(type, config);
+				}
+                return this.fx[key];
+            }
+        };
+    })();
     
     /* Model */
     $air.app.Model = function(key, config){
@@ -1312,8 +1106,8 @@
     };
     
     /* View */
-    $air.app.View = function(loader){  
-        this.loader = loader; 
+    $air.app.View = function(htmlLoader){  
+        this.htmlLoader = htmlLoader; 
         
         this.elements = {}; 
 		
@@ -1322,17 +1116,50 @@
     $air.app.View.prototype = (function(){
         //Private methods 
         
+        //Private events
+        
+        return {  
+            toString: function(){ return "$air.app.View"; },
+            init: function(){},
+            
+			$: function(selector) {
+				if(!this.elements[selector]) { this.elements[selector] = $(selector, this.htmlLoader.window.document); }
+				return this.elements[selector];
+			}
+        };
+    })();
+	
+	/* Presenter */
+	$air.app.Presenter = function(eventBus, view, dependencies) { 
+		this.eventBus = eventBus; 
+		this.view = view;
+		
+		if(dependencies) { $.each(dependencies, $.proxy(function(key, val) { this[key] = val; }, this)); }
+		
+		this.map = {};
+		
+		this.events = this.events || {};
+
+		this.init();
+	};
+	$air.app.Presenter.prototype = (function() {
+        
         //3D fx 
         function getFlipXEffect(to, config){
-            var fxConfig = $.extend({}, { view: this, secondView: to, axis: air.Vector3D.X_AXIS, duration: 200 }, config || {} ); 
+            var fxConfig = $.extend({}, { 
+				htmlLoader: this.view.htmlLoader, 
+				secondHtmlLoader: to.view.htmlLoader, 
+				axis: air.Vector3D.X_AXIS, 
+				duration: 200 
+			}, config || {} ); 
             return this.app.get3DEffect("flip", fxConfig);
         };
         function getSingleFlipYEffect(config){
-            var fxConfig = $.extend({}, { view: this, axis: air.Vector3D.Y_AXIS, duration: 300 }, config || {} );  
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, axis: air.Vector3D.Y_AXIS, duration: 300 }, config || {} );  
             return this.app.get3DEffect("single-flip", fxConfig);
         };
         function getZoomEffect(config){
-            var fxConfig = $.extend({}, { view: this, duration: 300 }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, duration: 300 }, config || {} ); 
 			
 			air.trace("zoom effect"); 
 			air.trace(fxConfig.duration);
@@ -1341,56 +1168,91 @@
         
         //Blender fx
         function getDissolveEffect(config){
-            var fxConfig = $.extend({}, { view: this }, config || {} );
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} );
             return this.app.getBlenderEffect("dissolve", fxConfig);
         };
         function getPageEffect(config){
-            var fxConfig = $.extend({}, { view: this }, config || {} );
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} );
             return this.app.getBlenderEffect("page", fxConfig);
         };
         function getWavesEffect(config){
-            var fxConfig = $.extend({}, { view: this, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
             return this.app.getBlenderEffect("waves", fxConfig);
         };
         function getShakeEffect(config){
-            var fxConfig = $.extend({}, { view: this, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
             return this.app.getBlenderEffect("shake", fxConfig);
         };
-        
-        //Private events
-        
-        return {  
-            toString: function(){ return "$air.app.View"; },
-            init: function(){
-
-            },
-            
-			$: function(selector) {
-				if(!this.elements[selector]) { this.elements[selector] = $(selector, this.loader.window.document); }
-				return this.elements[selector];
+		
+		function parseSelector(selector) {
+			return "#" + selector;
+		};
+		
+		return {
+			init: function() { 
+				$.each(this.events, $.proxy(function(type, eMap) { 
+					type = type.toLowerCase();
+					
+					switch(type) {
+						case "keydown":
+						break;
+						default:
+						$.each(eMap, $.proxy(function(selector, callback) {
+							this.view.$(parseSelector(selector)).bind(type, $.proxy(callback, this));
+						}, this));
+						break;
+					}
+				}, this)); 
 			}, 
-            get: function(id){
-                if (!this.element[id]) {
-                    this.element[id] = this.loader.window.document.getElementById(id);
-                }
-                return this.element[id];
-            }, 
-            
-            setX: function(x){
-                this.loader.x = x;
-            },
-            setY: function(y){
-                this.loader.y = y;
-            },
+			dispose: function() {
+				$.each(this.events, $.proxy(function(type, eMap) { 
+					type = type.toLowerCase();
+					
+					switch(type) {
+						case "keydown":
+						break;
+						default:
+						$.each(eMap, $.proxy(function(selector, callback) { 
+							this.view.$(parseSelector(selector)).unbind(type, $.proxy(callback, this));
+						}, this));
+						break;
+					}
+				}, this)); 
+			}, 
+			trigger: function(e, args) {
+				$(this.eventBus).trigger(e, args);
+			},
+
+			data: function(key, value) { 
+				if(!key) { return; }
+				if(!value) { return this.map[key]; }
+				this.map[key] = value;
+			},
+			removedata: function(key) { 
+				delete this.map[key]; 
+			},
+			
+			disable: function() { 
+				this.view.htmlLoader.mouseChildren = false;
+                this.view.htmlLoader.tabEnabled = false;
+                this.view.htmlLoader.stage.focus = null;
+			},
+			enable: function() {
+				this.view.htmlLoader.mouseChildren = true;
+                this.view.htmlLoader.tabEnabled = true;
+			}, 
+
+            setX: function(x){ this.view.htmlLoader.x = x; },
+            setY: function(y){ this.view.htmlLoader.y = y; },
             
             show: function(){
-                this.loader.stage.mouseChildren = true;
-                this.loader.visible = true;
-            },
+                this.view.htmlLoader.stage.mouseChildren = true;
+                this.view.htmlLoader.visible = true;
+            }, 
             hide: function(){
-                this.htmlLoader.visible = false;
+                this.view.htmlLoader.visible = false;
             },
-            
+
             //FX methods 
             flipX: function(to, reversed){
                 var effect = getFlipXEffect.call(this, to); 
@@ -1408,7 +1270,7 @@
 				effect.start(false);
             },
             blenderDissolve: function(){
-                this.loader.stage.mouseChildren = false;
+                this.disable();
                 
                 var effect = getDissolveEffect.call(this); 
                 effect.tween.hideOnFinish = true; 
@@ -1423,11 +1285,7 @@
             },
             blenderHide: function(){
                 this.show();
-                // disable mouse events on the list html loader
-                // as we don't want users to select the background list
-                this.loader.mouseChildren = false;
-                this.loader.tabEnabled = false;
-                this.loader.stage.focus = null;
+				this.disable();
                 
 				air.trace("blender hide start");
                 var effect = getPageEffect.call(this); 
@@ -1436,8 +1294,7 @@
             },
             blenderShow: function(){
                 this.show();
-                this.loader.mouseChildren = true;
-                this.loader.tabEnabled = true;
+				this.enable();
                 
                 var effect = getPageEffect.call(this); 
                 effect.tween.keepTheEffect = false; 
@@ -1475,41 +1332,6 @@
                 effect.tween.bounds = bounds; 
 				effect.start(false);
             }
-        };
-    })();
-	
-	/* Presenter */
-	$air.app.Presenter = function(view, eventBus) {
-		
-		
-		this.view = view;
-		this.eventBus = eventBus;
-		
-//		this.config = $.extend({}, {
-//			
-//		}, config || {});
-
-		this.init();
-	};
-	$air.app.Presenter.prototype = (function() {
-		
-		return {
-			init: function() { 
-				$.each(this.view.events, $.proxy(function(key, e) {
-					
-				}, this));
-			}, 
-			dispose: function() {
-				$.each(this.view.events, $.proxy(function(key, e) {
-					
-				}, this));
-			}, 
-			trigger: function(e, args) {
-				this.eventBus.trigger(e, args);
-			},  
-			stage: function(options) {
-				
-			}
 		};
 	})();
 	
@@ -1518,9 +1340,11 @@
 		this.appDef = appDef;
 		
 		this.stage = htmlLoader.stage;
-		this.loaders = {};
-		this.loaderCount = 0;
+		this.htmlLoaders = {};
+		this.htmlLoaderCount = 0;
 		this.loadCount = 0;
+		
+		this.effectCache = new $air.app.EffectCache();
 		
 		this.eventBus = new $air.app.ActionBus();
 		
@@ -1536,7 +1360,7 @@
 			air.trace(event.keyCode);
             if (event.target.stage.mouseChildren == true) {
 				air.trace("yoooohooo");
-				this.currentView.handleKeyDown(event); //????
+				//this.currentView.handleKeyDown(event); //????
             }
         }
         
@@ -1550,7 +1374,7 @@
             
             air.trace("loaderCount: " + this.loaderCount);
             air.trace("loadcount: " + this.loadCount);
-            if (this.loadCount === this.loaderCount) { this.go(); }
+            if (this.loadCount === this.htmlLoaderCount) { this.go(); }
         } 	
 		
 		return {
@@ -1569,22 +1393,23 @@
                 this.stage.transform.perspectiveProjection.focalLength = 800;
                 this.stage.addEventListener("keyDown", $.proxy(onKeyDown, this), true); 
 				
-				$.each(this.appDef.loaders(), $.proxy(function(key, HtmlLoader) { 
-					var htmlLoader = new HtmlLoader();
-					htmlLoader.bind("loaded", $.proxy(onHtmlLoaderLoad, this)); 
+				$.each(this.appDef.htmlLoaders(), $.proxy(function(key, htmlLoaderConfig) { 
+					var loader = $air.loaders.html.create(htmlLoaderConfig);
+					$(loader).bind("loaded", $.proxy(onHtmlLoaderLoad, this));
 					
+					this.htmlLoaders[key] = loader;
+					this.htmlLoaderCount++;
 					
+					loader.load(new air.URLRequest(htmlLoaderConfig.path)); 
 				}, this));
 				
-				$.each(this.bus.events, $.proxy(function(key, fn) { 
-					this.eventBus.bind(key, $.proxy(fn, this)); 
+				$.each(this.events, $.proxy(function(key, fn) { 
+					$(this.eventBus).bind(key, $.proxy(fn, this)); 
 				}, this)); 
 			}, 
 			dispose: function() {},
             
-            stage: function(presenterKey, dependencies){
-				var presenter = this.presenters(presenterKey);
-
+            stage: function(presenter){ 
 				if(this.trail.length == 0) { this.trail.push({ })}
 				this.trail.push()
 				
@@ -1605,37 +1430,35 @@
 //				this.db.dispose();
 				air.NativeApplication.nativeApplication.exit();
 			}, 
-            
-            get3DEffect: function(type, config){
-               	var key = config.view.key + "-3D-" + type;
-                if (!this.fx[key]) {
-                    var factory = new $air.fx.EffectFactory();
-                    this.fx[key] = factory.create(type, config);
-				}
-                return this.fx[key];
-            },
-            getBlenderEffect: function(type, config){
-                var key = config.view.key + "-blender-" + type;
-                if (!this.fx[key]) {
-                    var factory = new $air.fx.blender.EffectFactory();
-                    this.fx[key] = factory.create(type, config);
-				}
-                return this.fx[key];
-            }
+			presenters: function(key, dependencies) {
+				var Presenter = this.appDef.presenters(key);
+				return new Presenter(
+					this.effectCache, 
+					this.eventBus, 
+					this.views(key), 
+					dependencies
+				);
+			},
+			views: function(key) {
+				var View = this.appDef.views(key);
+				return new View(this.htmlLoaders[key]);
+			}
 		};
-	})();
+	})(); 
 	
 	$air.app.Definition = function(partial) { 
-		this.partial = $.extend({}, {  
-			services: {},
+		this.partial = $.extend({}, { 
 			models: {}, 
 			views: {}, 
 			presenters: {}, 
-			transitions: {},
+			transitions: {}, 
+			services: {},
 			shell: {} 
 		}, partial || {}); 
 		
-		this.full = { services: {}, models: {}, views: {}, loaders: {}, presenters: {}, transitions: {}, shell: {} }; 
+		this.full = {models: {}, views: {}, presenters: {}, transitions: {}, services: {}, shell: {}, htmlLoaders: {} }; 
+	
+		this.init();
 	};
 	$air.app.Definition.prototype = (function() {
 		//Private methods    
@@ -1665,14 +1488,33 @@
 		
 		function defineClasses(baseClasses) {
 			$.each(baseClasses, $.proxy(function(key, baseClass) {
+				key = key.toLowerCase();
 				air.trace(key + " init");
 				
-				$.each(this.partial[key], $.proxy(function(c, proto) {  
+				$.each(this.partial[key], $.proxy(function(c, proto) {
+					c = c.toLowerCase();  
 					air.trace(c+ " " + key + " init");  
 					
 					this.full[key][c] = mixin(baseClass, proto); //this.full["views"]["list"] = $air.app.View; (customized)  
 					if(key === "views") {
-						this.full["loaders"][c] = mixin($air.HtmlLoader, { path: proto.path }); 
+						var htmlLoaderConfig = {};
+						$.each(proto, $.proxy(function(prop, val) {
+							prop = prop.toLowerCase();
+							switch(prop) {
+								case "path":
+								case "x":
+								case "y":
+								case "paintsDefaultBackground":
+								htmlLoaderConfig[prop] = val;
+								break;
+								case "position":
+								if(val.x) { htmlLoaderConfig.x = val.x; }
+								if(val.y) { htmlLoaderConfig.y = val.y; }
+								break; 
+							}
+						}, this));
+							
+						this.full["htmlLoaders"][c] = htmlLoaderConfig;  
 					}
 					
 				}, this)); 
@@ -1705,28 +1547,28 @@
 		return { 
 			init: function() { 
 				defineClasses.call(this, {
-					"services": $air.app.Service, 
 					"models": $air.app.Model,
 					"views": $air.app.View,
 					"presenters": $air.app.Presenter, 
 					"transitions": $air.app.Transition,
+					"services": $air.app.Service, 
 					"shell": $air.app.Shell
 				});
 			}, 
-			services: function(key) { return lookup.call(this, "services", key); },
 			models: function(key) { return lookup.call(this, "models", key); },
-			views: function(key) { return lookup.call(this, "views", key); },
-			loaders: function(key) { return lookup.call(this, "loaders", key); }, 
+			views: function(key) { return lookup.call(this, "views", key); }, 
 			presenters: function(key) { return lookup.call(this, "presenters", key); },
 			transitions: function(key) { return lookup.call(this, "transitions", key); },
+			services: function(key) { return lookup.call(this, "services", key); },
 			shell: function() { return lookup.call(this, "shell"); },
+			htmlLoaders: function(key) { return lookup.call(this, "loaders", key); }
 		};
 	})();
 	
     
     /* Application */
     $air.app.Application = function(partial){ 
-		this.definition = new $air.app.Definition(partial);
+		this.def = new $air.app.Definition(partial);
 		
         this.init();
     };
@@ -1739,30 +1581,12 @@
             //Initialization - events added/disposed
             toString: function(){ return "$air.app.Application"; },
             init: function(){ 
-                air.trace("application initializing");  
-				
-//				air.trace("service init");
-//				$.each(this.def.services, $.proxy(function(key, desc) { this.classes["services"][key] = define($air.app.Service, desc); }, this));  
-//
-//            	air.trace("model init");  
-//				$.each(this.def.models, $.proxy(function(key, desc) { this.classes["models"][key] = define($air.app.Model, desc); }, this)); 
-//                
-//                air.trace("view init");  
-////                this.shell.loadCount = 0;
-////                this.shell.viewCount = $air.hash.getKeyCount(this.def.views);
-//				$.each(this.def.views, $.proxy(function(key, desc){ this.classes["views"][key] = define($air.app.View, desc); }, this));  
-//				
-//				air.trace("presenter init");  
-//				$.each(this.def.presenters, $.proxy(function(key, desc) { this.classes["presenters"][key] = define($air.app.Presenter, desc); }, this));  
-//				
-//				air.trace("transition init");
-//				$.each(this.def.transitions, $.proxy(function(key, desc) { this.classes["transitions"][key] = define($air.app.Transition, desc); }, this));  
+                air.trace("application initializing");   
 				
 				air.trace("shell init"); 
 				var Shell = this.definition.shell();
-				this.shell = new Shell(); 
-				this.shell.go();
-                
+				this.shell = new Shell(this.definition); 
+
                 //air.trace("db init");
 				
 				//var dbConfig = { tables: {} };
@@ -1770,17 +1594,7 @@
                 //this.db = new $air.db.Database(this.config.key, dbConfig);
                 
                 //custom fx loading?   
-            },
-			
-			//Data
-			data: function(key, value) { 
-				if(!key) { return; }
-				if(!value) { return this.map[key]; }
-				this.map[key] = value;
-			},
-			removedata: function(key) { 
-				delete this.map[key];
-			} 
+            } 
         };
     })();
     
