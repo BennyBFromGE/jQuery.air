@@ -13,8 +13,7 @@
     		
 		<script type="text/javascript">
 			$(function() {  
-				var shell = $.air.mvp({
-					db: { key: "bbs2" },
+				var shell = $.air.mvp({ 
 					models: {
 						contact: {
 							id: { type: "integer", primaryKey: true, autoIncrement: true },
@@ -25,21 +24,13 @@
 							website: { type: "varchar", size: 256 },
 							birthDate: { type: "varchar", size: 32 },
 							notes: { type: "varchar" },
-							photo: { type: "blob" },
-							toString: function() { return this.firstName + " " + this.lastName; },
-							toHTML: function() { 
-								return "<table><tr>" + 
-											"<td><img id='img_" + this.id  + "' width=36 height=48 class='photoSmall' src='" + "" + "' /></td>" +
-											"<td><span class='tableFieldName listValue'>" + this.firstName + " " + this.lastName + "</span><span class='tableFieldName listValue'>" + this.phone + "</span></td>" +
-										"</tr></table>";
-							}
+							photo: { type: "blob" } 
 						}
 					},
 					views: {
 						login: { 
 							path: "/view/test/blackbooksafe/login.html",
 							position: { x: 70, y: 20 }, 
-							getUsername: function() { return this.$("#username"); }, //function() { return $("#username", this); }
 							getPassword: function() { return this.$("#password"); }, 
 							getOk: function() { return this.$("#oklogin"); }, 
 							getClose: function() { return this.$("#closelogin"); }
@@ -47,24 +38,39 @@
 						newUser: {
 							path: "/view/test/blackbooksafe/new-user.html",
 							position: { x: 70, y: 20 },
-							getPassword: function() { return this.$("#password"); }, 
-							getOk: function() { return this.$("#okcreatepass"); }
+							getUserText: function() { return this.$("#newUser_text"); }, 
+							getNewPassword: function() { return this.$("#new_password"); },
+							getConfirmPassword: function() { return this.$("#confirm_password"); } 
 						},
 						list: {
 							path: "/view/test/blackbooksafe/list.html",
-							position: { x: 70, y: 20 },
+							position: { x: 0, y: 0 },
 							getList: function() { return this.$("#list"); }, 
 							getListBorder: function() { return this.$("#listPageBorder"); }
 						},
 						detail: {
 							path: "/view/test/blackbooksafe/detail.html",
-							position: { x: 120, y: 70 }
+							position: { x: 120, y: 70 }, 
+							getFirstName: function() { return this.$("#firstName"); },
+							getLastName: function() { return this.$("#lastName"); },
+							getPhone: function() { return this.$("#phone"); },
+							getEmail: function() { return this.$("#email"); },
+							getWebsite: function() { return this.$("#website"); },
+							getBirthday: function() { return this.$("#birthday"); },
+							getNotes: function() { return this.$("#notes"); },
+							getPhoto: function() { return this.$("#photo"); }
 						}, 
 						edit: {
 							path: "/view/test/blackbooksafe/edit.html",
 							position: { x: 120, y: 70 }, 
-							getFirstName: function() { return this.$("#editFirstName"); },
-							getLastName: function() { return this.$("#editLastName"); }
+							getFirstName: function() { return this.$("#firstName"); },
+							getLastName: function() { return this.$("#lastName"); },
+							getPhone: function() { return this.$("#phone"); },
+							getEmail: function() { return this.$("#email"); },
+							getWebsite: function() { return this.$("#website"); },
+							getBirthday: function() { return this.$("#birthday"); },
+							getNotes: function() { return this.$("#notes"); },
+							getPhoto: function() { return this.$("#photo"); }
 						},
 						confirmDelete: {
 							path: "/view/test/blackbooksafe/confirm-delete.html",
@@ -78,14 +84,27 @@
 					},
 					presenters: { 
 						login: {
-							submit: function() { 
-								var username = this.view.getUsername().val(), 
-									password = this.view.getPassword().val();
+							markInvalid: function() {
+								this.shake();
 								
-								this.trigger(
-									this.authService.login(username, password) ? 
-									"loggedIn" : "logInFailed"
+								this.view.getPassword().addClass("badPassword");
+							}, 
+							submit: function() { 
+								var password = $.trim(this.view.getPassword().val());
+								
+								if (password === "") {
+									this.markInvalid();
+									return;
+								} 
+							
+								this.authService.login(
+									password, 
+									$.proxy(function() { this.trigger("loggedIn"); }, this),
+									$.proxy(function() { this.trigger("logInFailed"); }, this) 
 								);
+							},
+							go: function() {
+								this.view.getPassword().focus();					
 							},  
 							events: {
 								keydown: {
@@ -96,51 +115,115 @@
 									"#oklogin": function() { this.submit(); }, 
 									"#closelogin": function() { this.exit(); }
 								}
-							},
-							go: function() {}
+							}
 						},
 						newUser: {
+							setUserText: function(text) {
+								this.view.getUserText().html('<span class="hint">' + text + '</span>'); 
+							}, 
+							markInvalid: function() {
+								this.shake();
+								
+								this.view.getNewPassword().addClass("badPassword");
+								this.view.getConfirmPassword().addClass("badPassword");
+							}, 
 							submit: function() {
-								var username = this.view.getUsername().val(), 
-									password =  this.view.getPassword().val();
-									
-								this.trigger(
-									this.authService.create(username, password) ? 
-									"userCreated" : "userCreateFailed"
+								var newPassword = $.trim(this.view.getNewPassword().val()), 
+									confirmPassword =  $.trim(this.view.getConfirmPassword().val());
+
+								if (newPassword === "") {
+									this.setUserText("Please specifiy a password!");
+									this.markInvalid(); 
+									return;
+								} 
+								
+								var strongPasswordPattern = /(?=^.{8,32}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/;
+								if(!strongPasswordPattern.test(newPassword)) { 
+									this.setUserText("The password should be 8-32 characters long and contain at least one lowercase letter, one uppercase letter and one number or symbol.");
+									this.markInvalid(); 
+									return;
+								}
+								
+								if(newPassword !== confirmPassword) {
+									this.setUserText("The two passwords do not match.");
+									this.markInvalid(); 
+									return;
+								}
+							
+								this.authService.login(
+									newPassword, 
+									$.proxy(function() { this.trigger("userCreated"); }, this),
+									$.proxy(function() { this.trigger("userCreateFailed"); }, this) 
 								);
+							},
+							go: function() { 
+								this.view.getNewPassword().focus();
 							}, 
 							events: {
 								keydown: {
-									enter: function() { this.submit(); },
+									enter: function() {  this.submit(); },
 									numpad_enter: function() { this.submit(); }
 								}, 
 								click: {
 									"#okcreatepass": function() { this.submit(); }
 								}
-							},
-							go: function() {}
+							}
 						},
 						list: { 
 							about: function() { this.trigger("displayAbout"); },
 							add: function() { this.trigger("addContact"); },
 							displayContact: function() { 
-								var listWidget = this.view.getListWidget();
 								
-								this.trigger("displayContact", { 
-									prevId: listWidget.prevIndex, 
-									id: listWidget.selectedIndex, 
-									nextId: listWidget.nextIndex
-								});
+//								this.trigger("displayContact", { 
+//									prevId: this.listWidget.prevIndex, 
+//									id: this.listWidget.selectedIndex, 
+//									nextId: this.listWidget.nextIndex
+//								});
 							}, 
-							detail: function() { this.displayContact(); }, 
+							detail: function() { 
+								this.displayContact(); 
+							
+							}, 
 							next: function() { 
-								this.view.getListWidget().next();
+//								this.listWidget.next();
 								this.displayContact();
 							},
-							prev: function() {
-								//todo: set prev selected record on view list
-								this.view.getListWidget().prev();
+							prev: function() { 
+//								this.listWidget.prev();
 								this.displayContact();
+							},
+							go: function() { 
+								//this.listWidget = new $.air.ui.List(this.view.getList());
+								//this.listWidget.bind("click", $.proxy(function() { this.detail(); }, this));
+	
+								function onSuccess(e, result) { 
+									if(!result) { return; }
+									
+									this.view.getListBorder().html("");
+									
+									var data = result.data || [];
+									for(var i = 0; i < data.length; i++) {
+										var item = data[i];
+ 
+ 										this.view.getListBorder()
+											.append(
+												$(document.createElement("div"))
+													.addClass("listDiv")
+													.html(
+														"<table><tr>" + 
+															"<td><img id='img_" + item.id  + "' width=36 height=48 class='photoSmall' src='" + "" + "' /></td>" +
+															"<td><span class='tableFieldName listValue'>" + item.firstName + " " + item.lastName + "</span><span class='tableFieldName listValue'>" + item.phone + "</span></td>" +
+														"</tr></table>"
+													)
+											); 
+									}
+									
+									//this.listWidget.data(result);
+//									if(this.id) { this.listWidget.select(this.id); }	
+								}
+								function onError(ex) { }
+								
+								this.contactService.get({}, $.proxy(onSuccess, this), $.proxy(onError, this)); 
 							},
 							events: { 
 								keydown: {  
@@ -155,21 +238,26 @@
 									"#minimize": function(){ this.minimize(); },
 									"#close": function(){ this.exit(); }
 								}
-							},
-							go: function() { 
-								var listWidget = this.view.getListWidget()
-								listWidget.bind("click", $.proxy(this.detail, this));
-								
-								function onSuccess(contacts) {
-									listWidget.data(contacts);
-									if(this.data("id")) { listWidget.select(this.data("id")); }	
-								}
-								function onError(ex) { }
-								
-								this.contactService.get({}, $.proxy(onSuccess, this), $.proxy(onError, this));
 							}
 						},
-						detail: { 
+						detail: {   
+							setActiveContact: function(contact) {
+								this.activeContact = contact;
+								
+								if(!this.activeContact) return; 
+								this.setForm(this.activeContact);
+							}, 
+							setForm: function(contact) {
+								this.view.getFirstName().text(contact.firstName);
+								this.view.getLastName().text(contact.lastName);
+								this.view.getPhone().text(contact.phone);
+								this.view.getEmail().text(contact.email);
+								this.view.getWebsite().text(contact.website);
+								this.view.getBirthday().text(contact.birthDate);
+								this.view.getNotes().text(contact.notes);
+								
+								//... photo
+							},
 							close: function() {
 								this.trigger("displayContactCanceled");
 							}, 
@@ -180,10 +268,33 @@
 								this.trigger("nextContact");
 							}, 
 							edit: function() {
-								this.trigger("editContact", this.data("activeContact"));
+								alert(this.activeContact.id);
+								this.trigger("editContact", { id: this.activeContact.id });
 							}, 
 							del: function() { 
-								this.trigger("deleteContact", this.data("activeContact"));
+								this.trigger("deleteContact", { id: this.activeContact.id });
+							}, 
+							go: function() {  
+								if (this.id) { 
+									if (this.deleted) { 
+										function onSuccess(){ this.trigger("contactDeleted"); }
+										function onError(ex){ this.trigger("contactDeleteFailed"); }
+										
+										this.contactService.del({ id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
+									}
+									else {
+										function onSuccess(e, result){
+											if(!result) return;
+											var data = result.data || [],
+												contact = data[0];
+											
+											this.setActiveContact(contact);
+										}
+										function onError(ex) { }
+										
+										this.contactService.get({ id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
+									}
+								}
 							},
 							events: {
 								keydown: {
@@ -202,55 +313,52 @@
 									"#editdetails": function() { this.edit(); }, 
 									"#deletedetails": function() { this.del(); }
 								}, 
-							}, 
-							go: function() {
-								if (this.data("id")) {
-									
-									if (this.data("deleted")) { 
-										function onSuccess(){ this.trigger("contactDeleted"); }
-										function onError(ex){ this.trigger("contactDeleteFailed"); }
-										
-										this.contactService.del({ id: this.data("id") }, $.proxy(onSuccess, this), $.proxy(onError, this));
-									}
-									else {
-										function onSuccess(contact){
-											this.data("activeContact", contact);
-											
-											this.view.getFirstName().val(contact.firstName);
-											this.view.getLastName().val(contact.lastName);
-										}
-										function onError(ex) { }
-										
-										this.contactService.get({ id: this.data("id") }, $.proxy(onSuccess, this), $.proxy(onError, this));
-									}
-								}
 							}
 						}, 
-						edit: {
+						edit: {  
+							setActiveContact: function(contact) {
+								this.activeContact = contact;
+								this.setForm(this.activeContact);
+							}, 
+							setForm: function(contact) {
+								this.view.getFirstName().val(contact.firstName);
+								this.view.getLastName().val(contact.lastName);
+								this.view.getPhone().val(contact.phone);
+								this.view.getEmail().val(contact.email);
+								this.view.getWebsite().val(contact.website);
+								this.view.getBirthday().val(contact.birthDate);
+								this.view.getNotes().val(contact.notes);
+								
+								//... photo
+							}, 
+							readForm: function() { 
+								var contact = this.activeContact;
+
+								contact.firstName = this.view.getFirstName().val(); 
+								contact.lastName = this.view.getLastName().val(); 
+								contact.phone = this.view.getPhone().val();
+								contact.email = this.view.getEmail().val();
+								contact.website = this.view.getWebsite().val();
+								contact.birthDate = this.view.getBirthday().val();
+								contact.notes = this.view.getNotes().val();												
+				
+								//... photo?
+								
+								return contact;
+							}, 
 							close: function() { this.trigger("editContactCanceled"); },
 							submit: function() {
 								//save contact
 								var contact = this.readForm();
 
-								function onSuccess() { 
-									this.trigger("contactUpdated");
+								function onSuccess(e, result) {  
+									this.trigger("contactUpdated", { id: result.lastInsertRowID });
 								}
-								function onError(ex) { alert("error saving contact"); }
+								function onError(e, error) { 
+									alert("error saving contact"); 
+								}
 								this.contactService.save(contact, $.proxy(onSuccess, this), $.proxy(onError, this));
 							},
-							setForm: function(contact) {
-								this.view.getFirstName().val(contact.firstName);
-								this.view.getLastName().val(contact.lastName);
-								//...
-							}, 
-							readForm: function() { 
-								var contact = this.data("activeContact");
-								contact.firstName = this.view.getFirstName().val();
-								contact.lastName = this.view.getLastName().val();
-								//...
-								
-								return contact;
-							}, 
 							events: {
 								keydown: {
 									escape: function() { this.close(); },
@@ -263,34 +371,56 @@
 									"#okedit": function() { this.submit(); }
 								} 
 							}, 
-							go: function() {
-								function onSuccess(contact) {
-									this.data("activeContact", contact);
-									this.setForm(contact);
-								}
-								function onError(ex) { }
+							go: function() {  
 									
-								if(this.data("id")) {
+								if(this.id) {
 									//edit 
-									this.contactService.get( { id: this.data("id")}, $.proxy(onSuccess, this), $.proxy(onError, this) ); 
+									function onSuccess(contact) { 
+										this.setActiveContact(contact);
+									}
+									function onError(ex) { }
+								
+									this.contactService.get( { id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this) ); 
 								} else { 
-									//add 
-									this.contactService.create( $.proxy(onSuccess, this), $.proxy(onError, this) );
+									//add  
+									this.setActiveContact(this.contactService.create());
 								} 
+			
+								this.stage.focus = this.view.htmlLoader;
+								this.view.getFirstName().focus();
 							} 
 						},
 						confirmDelete: { 
+							setActiveContact: function(contact) {
+								this.activeContact = contact;
+								this.setForm();
+							},
+							setForm: function() { 
+								this.view.getConfirmationText().html(this.getConfirmation());
+							}, 
 							getConfirmation: function() {
-								var contact = this.data("activeContact"), 
+								var contact = this.activeContact, 
 									contactName = contact.firstName + " " + contact.lastName;
 								
 								return  "Are you sure you want to remove " + contactName + " from your contact list?";
 							}, 
 							close: function() {
-								this.trigger("confirmDeleteCanceled");
+								this.trigger("confirmDeleteCanceled", { id: this.activeContact.id });
 							},
 							submit: function() {  
-								this.trigger("deleteConfirmed"); 
+								this.trigger("deleteConfirmed", { id: this.activeContact.id }); 
+							},
+							go: function() { 
+								function onSuccess(e, result){
+									if(!result) return;
+									var data = result.data || [],
+										contact = result.data[0];
+									
+									this.setActiveContact(contact);
+								}
+								function onError(ex) { } 
+								
+								this.contactService.get( { id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
 							}, 
 							events: {
 								keydown: {
@@ -302,23 +432,11 @@
 									"#cancelconfirm": function() { this.close(); },
 									"#okconfirm": function() { this.submit(); }
 								}
-							},
-							go: function() {
-								function onSuccess(contact){ 
-									this.data("activeContact", contact);
-									
-									this.view.getConfirmationText().html(this.getConfirmation());
-								}
-								function onError(ex) { }
-								
-								this.contactService.get( { id: this.data("id") }, 
-									$.proxy(onSuccess, this), 
-									$.proxy(onError, this)
-								);
-							}
+							} 
 						},
 						about: {  
-							close: function() { this.trigger("aboutCanceled"); }, 
+							close: function() { this.trigger("aboutCanceled"); },
+//							go: function() {}, 
 							events: {
 								keydown: {
 									escape: function(){ this.close(); },
@@ -329,53 +447,38 @@
 									"#closeabout": function(){ this.close(); },
 									"#okabout": function(){ this.close(); }
 								}
-							},
-							go: function() {}
+							} 
 						}
 					},
-					transitions: {
-						login: {  
-							list: function() { 
-								//this should be default transition
-								this.from.hide();
-								this.to.show();
-							}
-						},
-						newUser: {
-							list: function() {
-								this.from.hide();
-								this.to.show();
-							}
-						},
+					
+					
+					
+					
+					
+					transitions: {  
 						list: { 
 							detail: function() { 
 								this.from.blenderHide(); 
-								this.to.zoomShow($.air.bounds.get(this.from.view.getListBorder()));
-								//this.to.zoomShow(this.from.view.getListBorder());
+								this.to.zoomShow(this.from.view.getListBorder());
 							}, 
 							edit: function() {  
 								this.from.blenderHide();
 
-								var bounds = $.air.bounds.get(this.from.view.getListBorder());
-								air.trace("bounds: " + bounds);
-								this.to.zoomShow(bounds); 
-								//this.to.zoomShow(this.from.view.getListBorder());
+								this.to.zoomShow(this.from.view.getListBorder());
 							}, 
 							about: function() {
-								this.to.show();
+								alert("here");
+								this.to.wavesShow();
 							}
 						},
 						detail: { 
 							list: function() {   
 								//todo: move to presenter
-								if (this.from.data("deleted")) {
+								if (this.from.deleted) {
 									this.from.blenderDissolve();
 								} 
 							
-								var bounds = $.air.bounds.get(this.to.view.getListBorder()); 
-								this.from.zoomHide(bounds);
-								//this.from.zoomHide(this.to.view.getListBorder());
-								
+								this.from.zoomHide(this.to.view.getListBorder());
 								this.to.blenderShow();
 							},
 							detail: function(args) {  
@@ -386,19 +489,13 @@
 								this.from.flipX(this.to, false);
 							},
 							confirmDelete: function() { 
-								//todo: change this to general method
-								
-								var stage = htmlLoader.stage;
-								stage.setChildIndex(this.to.htmlLoader, stage.numChildren-1);
-								//this.to.bringToFront();
-								
+								this.to.bringToFront();
 								this.to.show();
 							}
 						}, 
 						edit: {
 							list: function() { 
-								this.from.zoomHide($.air.bounds.get(this.to.view.getListBorder())); 
-								//this.from.zoomHide(this.to.view.getListBorder());
+								this.from.zoomHide(this.to.view.getListBorder());
 								this.to.blenderShow();
 							},
 							detail: function() { 
@@ -409,70 +506,78 @@
 							detail: function(args){ this.from.hide(); }
 						},
 						about: { 
-							list: function(){ this.from.hide(); }
+							list: function(){ this.from.wavesHide(); }
 						}
 					}, 
-					services: {
-						auth: { 
-							create: function(password) { 
-							
-							}, 
-							login: function(username, password) { 
-								return true;	
+					
+					
+					services: { 
+						auth: {
+							login: function(pwd, onSuccess, onFailure) { 
+								this.db.open(pwd, onSuccess, onFailure);  
 							}
 						}, 
 						contact: {
-							get: function(criteria) {
-								
+							create: function() {
+								return this.contactModel.build();
+							}, 
+							get: function(criteria, onSuccess, onFailure) { 
+								this.db.tables("contact").get(criteria, onSuccess, onFailure);
 							},
-							save: function(contact) {
-								
+							save: function(contact, onSuccess, onFailure) {
+								this.db.tables("contact").set(contact, onSuccess, onFailure);
 							},
-							del: function(id) {
-								
+							del: function(criteria, onSuccess, onFailure) {
+								this.db.tables("contact").del(criteria, onSuccess, onFailure); 
 							}
 						}
 					}, 
+					
+					
+					
+					
+					
+					
 					shell: { 
+						getAuthDependencies: function() { 
+							return { 
+								authService: this.services("auth", { 
+									db: this.db 
+								}) 
+							}; 
+						},
+						getContactDependencies: function(args) {  
+							return $.extend({}, {  
+								contactService: this.services("contact", { 
+									contactModel: this.models("contact"), 
+									db: this.db 
+								}), 
+							}, args || {}); 
+						}, 
 						login: function() { 
-							this.stage(this.presenters("login", { authService: this.services("auth") }) );
+							this.present("login", this.getAuthDependencies()); 
 						}, 
 						newUser: function() {
-							this.stage(this.presenters("newUser", { authService: this.services("auth") }));
+							this.present("newUser", this.getAuthDependencies()); 
 						}, 
 						about: function() { 
-							this.stage(this.presenters("about", { })); 
+							this.present("about"); 
 						},
-						list: function(args) { 
-							var dependencies = {  
-								contactService: this.services("contact"), 
-								data: args || {} 
-							};
-							this.stage(this.presenters("list", dependencies));
+						list: function(args) {  
+							this.present("list", this.getContactDependencies(args)); 
 						},
-						detail: function(args) {  
-							var dependencies = {  
-								contactService: this.services("contact"), 
-								data: args || {}
-							};
-							this.stage(this.presenters("detail", dependencies));
+						detail: function(args) {    
+							this.present("detail", this.getContactDependencies(args)); 
 						},
-						edit: function(args) { 
-							var dependencies = {  
-								contactService: this.services("contact"), 
-								data: args || {}
-							};
-							this.stage(this.presenters("edit", dependencies));
+						edit: function(args) {   
+							this.present("edit", this.getContactDependencies(args)); 
 						},
-						confirmDelete: function(args) {
-							var dependencies = { 
-								contactService: this.services("contact"),
-								data: args || {}
-							};
-							this.stage(this.presenters("confirmDelete", dependencies));
+						confirmDelete: function(args) { 
+							this.present("confirmDelete", this.getContactDependencies(args)); 
 						}, 
-						prev: function() { this.staged("list").prev(); }, 
-						next: function() { this.staged("list").next(); }, 
+						prev: function() { this.active("list").prev(); }, 
+						next: function() { this.active("list").next(); }, 
+						
 						events: { 
 							//login & newuser events
 							loggedIn: function() { this.list(); }, //login => list
@@ -488,7 +593,7 @@
 							
 							//edit events
 							contactUpdated: function(args) { this.detail(args); }, //edit => detail
-							editContactCanceled: function(args) { if(args.id) { this.detail(args); } else { this.list(); } }, //edit => detail/list
+							editContactCanceled: function(args) { if(args) { this.detail(args); } else { this.list(); } }, //edit => detail/list
 							
 							//display events
 							displayContactCanceled: function(args) { this.list(args); }, //detail => list
@@ -499,17 +604,24 @@
 							contactDeleted: function(args) { this.list(args); },  //detail => list
 							
 							//confirm delete events
-							deleteConfirmed: function(args) { this.detail( $.extend({ deleted: true }, args || {} )); }, //confirm delete => detail (contact deleted)
+							deleteConfirmed: function(args) { this.detail( $.extend({}, { deleted: true }, args || {} )); }, //confirm delete => detail (contact deleted)
 							confirmDeleteCanceled: function(args) { this.detail(args); }, //confirm delete => detail 
 							
 							//about events
 							aboutCanceled: function(args) { this.list(args); } //about => list
 						},
-						go: function() {
-							if (this.db.isInitialized()) {
+						
+						go: function() {  
+							this.db = new $.air.Database("bbs-03", { 
+								tables: { 
+									"contact" : this.models("contact").toTable() 
+								} 
+							}); 
+
+							if (this.db.isInitialized()) {  
 								this.login();
 							}
-							else {
+							else { 
 								this.newUser();
 							}
 						}
