@@ -375,8 +375,8 @@
 	            this.firstFace.stage.mouseChildren = false;
 	            this.secondFace.stage.mouseChildren = false;
 	            
-	            this.firstFace.visible = !this.reversed;
-	            this.secondFace.visible = this.reversed;
+	            this.firstFace.visible = !this.tween.reversed;
+	            this.secondFace.visible = this.tween.reversed;
 	            
 	            this.flipped = false;
 			}, this))
@@ -387,8 +387,8 @@
 	            
 	            this.firstFaceRotation.rotate(rotation, this.axis);
 	            this.secondFaceRotation.rotate(rotation + 180, this.axis);
-				
-	            if (this.shouldFlipLoaders && !this.flipped) {
+
+	            if (shouldFlipLoaders && !this.flipped) {
 	                this.firstFace.visible = reversed;
 	                this.secondFace.visible = !reversed;
 	                this.flipped = true;
@@ -399,6 +399,10 @@
 	            this.secondFaceRotation.reset();
 	            this.firstFace.stage.mouseChildren = true;
 	            this.secondFace.stage.mouseChildren = true;
+				
+				$(this)
+					.trigger("finished")
+					.unbind();
 			}, this)); 
     };
     $air.fx.Flip.prototype = new $air.fx.Effect();
@@ -450,13 +454,7 @@
 	            this.secondFaceRotation.position = this.firstFaceRotation.position;
 	            this.secondFaceRotation.rotationCenter.z = this.secondFace.width / 2;
 	            
-	            // change to the other half now, as we already have a 
-	            // snapshot of the old image
-	            //if (this.onHalf) {
-	              //  this.onHalf();
-	            //}
-	            
-	            this.flipped = false;
+				this.flipped = false;
 			}, this))
 			.bind("tweening", $.proxy(function(e, value, percent) { 
 	            var shouldFlipLoaders = percent > 0.5;
@@ -489,6 +487,10 @@
 	            this.secondFace.bitmapData.dispose();
 	            this.secondFace = null;
 	            this.oldFilters = null;
+				
+				$(this)
+					.trigger("finished")
+					.unbind();
 			}, this));  
     };
     $air.fx.SingleFlip.prototype = new $air.fx.Effect();
@@ -520,6 +522,8 @@
 	            if (!reversed) {
 	                this.firstFace.visible = true;
 	            }
+				
+				$(this).trigger("starting"); 
 			}, this))
 			.bind("tweening", $.proxy(function(e, value, percent) { 
 				var reversed = this.tween.reversed;
@@ -549,6 +553,10 @@
 	                this.firstFace.visible = false;
 	            }
 	            this.firstFace.stage.mouseChildren = true;
+				
+				$(this)
+					.trigger("finished")
+					.unbind();
 			}, this)); 
     };
     $air.fx.Zoom.prototype = new $air.fx.Effect();
@@ -591,13 +599,15 @@
             transition: $air.anim.linear
         }, config || {}); 
 		
+		this.isLoaded = false;
+		
 		this.firstFace = this.config.htmlLoader;
 		this.shader = this.config.shader;
-		this.shaderConfig = this.config.shaderConfig;
+		this.shaderConfig = this.config.shaderConfig; 
 		
         this.keepTheEffect = false;
         this.hideOnFinish = false;
-        this.disableInteraction = false;
+        this.disableInteraction = false; 
         
         this.tween = new $air.anim.Tween({
 			begin: 0,
@@ -643,9 +653,13 @@
 		function onLoad(e) {
 			var loader = e.target; 
 			this.shader = new air.Shader(loader.data); 
+			
+			this.isLoaded = true;
+			
+			$(this).trigger("loaded");
 		}
 		
-		function onStart() { }
+		function onStart() { $(this).trigger("starting"); }
 		function onTween(e, value, percent) {
             // apply the blender effct
 			var reversed = this.tween.reversed;
@@ -669,6 +683,10 @@
             if (this.disableInteraction) {
                 window.htmlLoader.stage.mouseChildren = true;
             }
+				
+			$(this)
+				.trigger("finished")
+				.unbind();
 		}
         
         return { 
@@ -687,14 +705,20 @@
 					
 			}, 
 	        start: function(reversed) {
-	            if (this.tween) {
-	                this.tween.start(reversed);
-	            }
+				if(!this.tween) return;
+
+				if(!this.isLoaded) { 
+					$(this).bind("loaded", $.proxy(function() { 
+						this.tween.start(reversed); 
+					}, this));
+					return;
+				}
+			    this.tween.start(reversed);
 	        },
 	        stop: function() {
-	            if (this.tween) {
-	                this.tween.stop();
-	            }
+				if(!this.tween) return;
+				
+                this.tween.stop();
 	        }
         };
     })();
@@ -842,7 +866,7 @@
             air.trace("executing query");
             air.trace(sql);
             var query = new $air.db.Query(this.connection);
-            
+
             if (successCallback) { 
 				function onSuccess(e, result) { 
 					successCallback(e, result);
@@ -1298,7 +1322,7 @@
 		};
 		
 		return {
-			init: function() { 
+			init: function() {  
 				for(var cat in this.events) { 
 					var tempCat = cat.toLowerCase();
 					
@@ -1386,7 +1410,18 @@
 
             //FX methods 
             flipX: function(to, reversed){
+				air.trace("flipping x");
+				
                 var effect = getFlipXEffect.call(this, to); 
+				$(effect).bind("finished", $.proxy(function() {  
+					if (reversed) {
+						this.show();
+						to.hide();
+					} else {
+						this.hide();
+						to.show();
+					}
+				}, this));
 				effect.start(reversed);
             }, 
             flipY: function(reversed){
@@ -1402,50 +1437,39 @@
             },
             blenderDissolve: function(){ 
                 var effect = getDissolveEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
                 effect.hideOnFinish = true; 
-				effect.start(false);
-				
-				this.trigger("hidden");
+				effect.start(false); 
             },
             blenderAppear: function(){
                 var effect = getDissolveEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
                 effect.hideOnFinish = false; 
-				effect.start(true);
-				
-                this.enable(); 
-				
-				this.trigger("shown");
+				effect.start(true); 
             },
-            blenderHide: function(){ 
-				air.trace("blender hide start");
+            blenderHide: function(){  
                 var effect = getPageEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.disable(); }, this));
                 effect.keepTheEffect = true; 
-				effect.start(false);
-
-				this.disable(); 
+				effect.start(false); 
             },
             blenderShow: function(){ 
                 var effect = getPageEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.enable(); }, this));
                 effect.keepTheEffect = false; 
-				effect.start(true);
-				
-				this.enable();
-				
-				this.trigger("shown"); 
+				effect.start(true);  
             },
             wavesHide: function(){
                 var effect = getWavesEffect.call(this);  
+				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
                 effect.hideOnFinish = true; 
-				effect.start(true);
-				
-				this.trigger("hidden");
+				effect.start(true); 
             },
-            wavesShow: function(){
+            wavesShow: function() {     
                 var effect = getWavesEffect.call(this); 
+				$(effect).bind("starting", $.proxy(function() { this.show(); }, this));
                 effect.hideOnFinish = false; 
-				effect.start(false); 
-				
-				this.trigger("shown");
+				effect.start(false);
             },
             
             zoomHide: function(el){
@@ -1454,10 +1478,9 @@
                 blenderEffect.start(true);
 				
                 var effect = getZoomEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
                 effect.tween.bounds = $air.bounds.get(el); 
-				effect.start(true);
-				
-				this.trigger("hidden");
+				effect.start(true); 
             },
             zoomShow: function(el){ 
                 var blenderEffect = getPageEffect.call(this); 
@@ -1466,10 +1489,9 @@
                 blenderEffect.start(true);
 				
                 var effect = getZoomEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
                 effect.tween.bounds = $air.bounds.get(el); 
-				effect.start(false);
-				
-				this.trigger("shown");
+				effect.start(false); 
             }
 		};
 	})();
@@ -1566,6 +1588,12 @@
 			
 			switch(e.type) {
 				case "hidden":
+				
+				air.trace("killing presenter: " + sender.key);
+				var presenter = this.staged[sender.key];
+				if(!presenter) return;
+				presenter.dispose();
+					
 				delete this.staged[sender.key];
 				break; 
 				case "shown":
@@ -1637,7 +1665,15 @@
 			}, 
 			presenters: function(key, dependencies) { 
 				var current = this.active(key);
-				if(current) { return current; }
+				if(current) {  
+					if(!dependencies) return current;
+
+					for(var key in dependencies) { 
+						if(current[key]) continue;
+						current[key] = dependencies[key]; 
+					} 
+					return current; 
+				}
 			
 				var Presenter = this.appDef.presenters(key) || $air.app.Presenter;
 				 

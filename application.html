@@ -267,34 +267,39 @@
 							next: function() {
 								this.trigger("nextContact");
 							}, 
-							edit: function() {
-								alert(this.activeContact.id);
-								this.trigger("editContact", { id: this.activeContact.id });
+							edit: function() {   
+								this.trigger("editContact", this.activeContact);
 							}, 
 							del: function() { 
-								this.trigger("deleteContact", { id: this.activeContact.id });
+								this.trigger("deleteContact", this.activeContact);
 							}, 
-							go: function() {  
-								if (this.id) { 
-									if (this.deleted) { 
-										function onSuccess(){ this.trigger("contactDeleted"); }
-										function onError(ex){ this.trigger("contactDeleteFailed"); }
-										
-										this.contactService.del({ id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
-									}
-									else {
-										function onSuccess(e, result){
-											if(!result) return;
-											var data = result.data || [],
-												contact = data[0];
-											
-											this.setActiveContact(contact);
-										}
-										function onError(ex) { }
-										
-										this.contactService.get({ id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
-									}
+							go: function() { 
+								air.trace("go detail!!!!!!!!");
+								 
+								if(!this.id) return;
+
+							
+								if (this.deleted) {  
+									function onDelSuccess(){  this.trigger("contactDeleted"); }
+									function onDelError(ex){ this.trigger("contactDeleteFailed"); }
+									
+									this.contactService.del({ id: this.id }, $.proxy(onDelSuccess, this), $.proxy(onDelError, this));
 								}
+								else {
+									function onGetSuccess(e, result){
+										if(!result) return;
+										
+										air.trace("successful get of contact for detail");
+										
+										var data = result.data || [],
+											contact = data[0];
+										
+										this.setActiveContact(contact);
+									}
+									function onGetError(ex) { }
+									
+									this.contactService.get({ id: this.id }, $.proxy(onGetSuccess, this), $.proxy(onGetError, this));
+								} 
 							},
 							events: {
 								keydown: {
@@ -352,7 +357,8 @@
 								var contact = this.readForm();
 
 								function onSuccess(e, result) {  
-									this.trigger("contactUpdated", { id: result.lastInsertRowID });
+									if(!contact.id) { contact.id = result.lastInsertRowID; }
+									this.trigger("contactUpdated", contact);
 								}
 								function onError(e, error) { 
 									alert("error saving contact"); 
@@ -372,14 +378,24 @@
 								} 
 							}, 
 							go: function() {  
-									
+								
+								air.trace("Editing contacttttttttttttttttttt");
+								air.trace("value of this.id: " + this.id);
 								if(this.id) {
 									//edit 
-									function onSuccess(contact) { 
+									function onSuccess(e, result) {
+										if(!result) return;
+										
+										var data = result.data || [],
+											contact = data[0];
+												 
+										air.trace("successful get of contact from edit");
 										this.setActiveContact(contact);
 									}
-									function onError(ex) { }
+									function onError(ex) { air.trace("error retrieving contact"); }
 								
+									air.trace("getting contact: " + this.id);
+										
 									this.contactService.get( { id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this) ); 
 								} else { 
 									//add  
@@ -467,7 +483,6 @@
 								this.to.zoomShow(this.from.view.getListBorder());
 							}, 
 							about: function() {
-								alert("here");
 								this.to.wavesShow();
 							}
 						},
@@ -486,7 +501,7 @@
 								this.from.flipY(args.reverse);
 							}, 
 							edit: function() {
-								this.from.flipX(this.to, false);
+								this.from.flipX(this.to, false); 
 							},
 							confirmDelete: function() { 
 								this.to.bringToFront();
@@ -499,7 +514,7 @@
 								this.to.blenderShow();
 							},
 							detail: function() { 
-								this.to.flipX(this.from, true);
+								this.to.flipX(this.from, true); 
 							}
 						},
 						confirmDelete: {  
@@ -566,10 +581,10 @@
 						list: function(args) {  
 							this.present("list", this.getContactDependencies(args)); 
 						},
-						detail: function(args) {    
+						detail: function(args) {     
 							this.present("detail", this.getContactDependencies(args)); 
 						},
-						edit: function(args) {   
+						edit: function(args) {    
 							this.present("edit", this.getContactDependencies(args)); 
 						},
 						confirmDelete: function(args) { 
