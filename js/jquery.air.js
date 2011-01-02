@@ -1,7 +1,8 @@
-(function($){
-    var $air = {};
+;jQuery.air || (function($) {
+	
+    $.air = {};
     
-    $air.hash = {
+    $.air.hash = {
         toArray: function(hash){
             var arr = [];
             for (var key in hash) {
@@ -15,7 +16,7 @@
     }
     
     /*** jQuery.air.crypto - utlity ***/
-    $air.crypto = (function(){
+    $.air.crypto = (function(){
         var ELS_RGN_ITEM_NAME = "Random Generated Number";
         var BYTE_LENGTH = 32;
         
@@ -24,8 +25,7 @@
             
             if (value == null) {
                 //		This is the first Key generation and no RN was stored in ELS
-                //		Generate a new RN with the flash RNG
-                air.trace("Generated 256 bit RN");
+                //		Generate a new RN with the flash RNG 
                 
                 value = new air.ByteArray();
                 value.length = BYTE_LENGTH; //32 bytes 
@@ -101,7 +101,7 @@
     })();
     
     /*** jQuery.air.bounds - utlity ***/
-    $air.bounds = {
+    $.air.bounds = {
         get: function(el){ 
             el = el.selector ? el.get(0) : el;
 			var htmlLoader = el.ownerDocument.defaultView.htmlLoader;
@@ -125,7 +125,7 @@
     };
     
     /*** jQuery.air.HTMLLoader - htmlLoader utility ***/ 
-	$air.loaders = {
+	$.air.loaders = {
 		html: {
 			create: function(config){
 				config =  $.extend({}, {  
@@ -140,7 +140,7 @@
 	            loader.paintsDefaultBackground = config.paintsDefaultBackground;
 	            loader.visible = config.visible;
 	            
-	            var filterFactory = new $air.filters.FilterFactory();
+	            var filterFactory = new $.air.filters.FilterFactory();
 	            loader.filters = [filterFactory.create("shadow").filter]; 
 	            
 	            return loader;
@@ -152,15 +152,16 @@
 	        copyAsBitmap: function(loader){
 				var data = new air.BitmapData(loader.width, loader.height, true, 0);
 				data.draw(loader);
+				return new air.Bitmap(data);
 			}
 		}
 	};
     
     /*** jQuery.air.filters ***/
-    $air.filters = {};
+    $.air.filters = {};
     
     /* Abstract filter */
-    $air.filters.Filter = function(config){
+    $.air.filters.Filter = function(config){
         this.config = $.extend({}, {
             x: 0,
             y: 0,
@@ -170,35 +171,35 @@
         
         this.filter = null; 
     };
-    $air.filters.Filter.prototype = {};
+    $.air.filters.Filter.prototype = {};
     
     /* Custom filter */
-    $air.filters.DropShadow = function(config){
-        $air.filters.Filter.call(this, config);
+    $.air.filters.DropShadow = function(config){
+        $.air.filters.Filter.call(this, config);
 
         this.filter = new runtime.flash.filters.DropShadowFilter(this.config.x, this.config.y);
         this.filter.blurX = this.config.blurX;
         this.filter.blurY = this.config.blurY;
     };
-    $air.filters.DropShadow.prototype = new $air.filters.Filter();
-    $air.filters.DropShadow.prototype.constructor = $air.filters.DropShadow; 
+    $.air.filters.DropShadow.prototype = new $.air.filters.Filter();
+    $.air.filters.DropShadow.prototype.constructor = $.air.filters.DropShadow; 
     
     /* Filter factory */
-    $air.filters.FilterFactory = function(){};
-    $air.filters.FilterFactory.prototype = {
+    $.air.filters.FilterFactory = function(){};
+    $.air.filters.FilterFactory.prototype = {
         create: function(type, config){
             type = type.toLowerCase();
             switch (type) {
                 case "dropshadow":
                 case "drop-shadow":
                 case "shadow":
-                    return new $air.filters.DropShadow(config);
+                    return new $.air.filters.DropShadow(config);
             }
         }
     };
     
     /*** jQuery.air.anim ***/
-    $air.anim = {
+    $.air.anim = {
         linear: function(t, b, c, d){
             return (t / d) * c + b;
         },
@@ -216,15 +217,15 @@
     };
     
     /* Tween */
-    $air.anim.Tween = function(config){
-		this.config = $.extend({}, { effect: $air.anim.ease }, config || {}); 
+    $.air.anim.Tween = function(config){
+		this.config = $.extend({}, { effect: $.air.anim.ease }, config || {}); 
 		
         this.reversed = false;
         this.running = false;
         this.interval = null; 
     };
-    $air.anim.Tween.fps = 30;
-    $air.anim.Tween.prototype = (function(){
+    $.air.anim.Tween.fps = 30;
+    $.air.anim.Tween.prototype = (function(){
     
         return {   
             start: function(reversed){
@@ -235,13 +236,12 @@
                 
                 var begin = this.config.begin, end = this.config.end;
                 var transitionEffect = this.config.effect, currentEffect = 0;
-                var duration = this.config.duration, fps = $air.anim.Tween.fps, startTime = new Date().getTime();
+                var duration = this.config.duration, fps = $.air.anim.Tween.fps, startTime = new Date().getTime();
                 
 				$(this).trigger("started");
 
-				//air.trace("starting tween"); 
-				//air.trace(begin); air.trace(end); air.trace(duration);
-			 	currentEffect = transitionEffect(0, begin, end - begin, duration);
+
+				currentEffect = transitionEffect(0, begin, end - begin, duration);
 				$(this).trigger("tweening", [currentEffect, 0]);
 				 
                 var self = this;
@@ -251,10 +251,7 @@
                     currentEffect = transitionEffect(deltaTime, begin, end - begin, duration); 
 					$(self).trigger("tweening", [currentEffect, deltaTime / duration]);
 					
-					//air.trace("tween effect - cuurentEffect: " + currentEffect);
-					//air.trace("tween effect - duration: " + duration);
-					//air.trace("tween effect - deltatime: " + deltaTime);
-                    if (nativeWindow.closed || duration <= deltaTime || !self.running) {
+					if (nativeWindow.closed || duration <= deltaTime || !self.running) {
                         self.finish(false);
                     }
                 }, 1000 / fps); 
@@ -265,8 +262,6 @@
                 };
             },
             finish: function(interactive){
-				air.trace("finishing tween");
-				air.trace(this);
                 clearInterval(this.interval);
                 this.interval = null;
                 this.running = false;
@@ -277,13 +272,13 @@
     })();
     
     /*** jQuery.air.transform ***/
-    $air.transform = {};
-    $air.transform.Rotation = function(target){
+    $.air.transform = {};
+    $.air.transform.Rotation = function(target){
         this.target = target;
 		
         this.setCenter();
     };
-    $air.transform.Rotation.prototype = (function(){
+    $.air.transform.Rotation.prototype = (function(){
     
         return {
             setCenter: function(){
@@ -322,10 +317,10 @@
     })();
     
     /*** jQuery.air.fx ***/
-    $air.fx = {};
+    $.air.fx = {};
     
     /* Abstract 3D effect */
-    $air.fx.Effect = function(config){
+    $.air.fx.Effect = function(config){
         this.config = $.extend({}, {
             htmlLoader: null,
 			secondHtmlLoader: null, 
@@ -335,7 +330,7 @@
 
         this.tween = null;  
     };
-    $air.fx.Effect.prototype = { 
+    $.air.fx.Effect.prototype = { 
         start: function(reversed) {
             if (this.tween) {
                 this.tween.start(reversed);
@@ -349,13 +344,13 @@
     };
     
     /* Custom 3D fx */
-    $air.fx.Flip = function(config){
-        $air.fx.Effect.call(this, config);
+    $.air.fx.Flip = function(config){
+        $.air.fx.Effect.call(this, config);
 
 		this.firstFace = this.config.htmlLoader;
 		this.secondFace = this.config.secondHtmlLoader; 
-		this.firstFaceRotation = new $air.transform.Rotation(this.firstFace); 
-		this.secondFaceRotation = new $air.transform.Rotation(this.secondFace); 
+		this.firstFaceRotation = new $.air.transform.Rotation(this.firstFace); 
+		this.secondFaceRotation = new $.air.transform.Rotation(this.secondFace); 
 		this.axis = this.config.axis;
 		this.duration = this.config.duration; 
 		this.startValue = 0; 
@@ -363,11 +358,11 @@
 		this.switchValue = (this.startValue + this.endValue) / 2; 
 		this.flipped = false;
         
-        this.tween = new $air.anim.Tween({
+        this.tween = new $.air.anim.Tween({
 			begin: this.startValue,
 			end: this.endValue,
 			duration: this.duration,
-			effect: $air.anim.linear
+			effect: $.air.anim.linear
 		}); 
 		
 		$(this.tween)
@@ -405,31 +400,31 @@
 					.unbind();
 			}, this)); 
     };
-    $air.fx.Flip.prototype = new $air.fx.Effect();
-    $air.fx.Flip.prototype.constructor = $air.fx.Flip; 
+    $.air.fx.Flip.prototype = new $.air.fx.Effect();
+    $.air.fx.Flip.prototype.constructor = $.air.fx.Flip; 
     
-    $air.fx.SingleFlip = function(config){
-        $air.fx.Effect.call(this, config);
+    $.air.fx.SingleFlip = function(config){
+        $.air.fx.Effect.call(this, config);
 
-		this.firstFace = config.htmlLoader, 
+		this.firstFace = this.config.htmlLoader, 
 		this.firstFaceParent = null; 
-		this.firstFaceRotation = new $air.transform.Rotation(firstFace);  
-        this.firstFaceRotation.rotationCenter.z = firstFace.width / 2; 
+		this.firstFaceRotation = new $.air.transform.Rotation(this.firstFace);  
+        this.firstFaceRotation.rotationCenter.z = this.firstFace.width / 2; 
 		this.secondFace = null;
 		this.secondFaceRotation = null; 
-		this.axis = config.axis; 
-		this.duration = config.duration; 
+		this.axis = this.config.axis; 
+		this.duration = this.config.duration; 
 		this.startValue = 0; 
 		this.endValue = -90;
 		this.flipped = false;
 		this.oldFilters;
 		this.filteredSprite; 
         
-        this.tween = new $air.anim.Tween({
+        this.tween = new $.air.anim.Tween({
 			begin: this.startValue,
 			end: this.endValue,
 			duration: this.duration,
-			effect: $air.anim.linear
+			effect: $.air.anim.linear
 		});
 		$(this.tween)
 			.bind("started", $.proxy(function() {
@@ -448,9 +443,9 @@
 	            this.firstFaceParent.removeChild(this.firstFace);
 	            this.filteredSprite.addChild(this.firstFace);
 	            
-	            this.secondFace = $air.loaders.html.copyAsBitmap(this.firstFace); 
+	            this.secondFace = $.air.loaders.html.copyAsBitmap(this.firstFace); 
 	            this.filteredSprite.addChild(this.secondFace);
-	            this.secondFaceRotation = new $air.transform.Rotation(this.secondFace); 
+	            this.secondFaceRotation = new $.air.transform.Rotation(this.secondFace); 
 	            this.secondFaceRotation.position = this.firstFaceRotation.position;
 	            this.secondFaceRotation.rotationCenter.z = this.secondFace.width / 2;
 	            
@@ -459,15 +454,15 @@
 			.bind("tweening", $.proxy(function(e, value, percent) { 
 	            var shouldFlipLoaders = percent > 0.5;
 				var reversed = this.tween.reversed;
-	            var rotation = !reversed ? value : endValue - (value - startValue);
+	            var rotation = !reversed ? value : this.endValue - (value - this.startValue);
 	            
 	            if (reversed) {
-	                this.firstFaceRotation.rotate(rotation, axis);
-	                this.secondFaceRotation.rotate(rotation + 90, axis);
+	                this.firstFaceRotation.rotate(rotation, this.axis);
+	                this.secondFaceRotation.rotate(rotation + 90, this.axis);
 	            }
 	            else {
-	                this.firstFaceRotation.rotate(rotation + 90, axis);
-	                this.secondFaceRotation.rotate(rotation, axis);
+	                this.firstFaceRotation.rotate(rotation + 90, this.axis);
+	                this.secondFaceRotation.rotate(rotation, this.axis);
 	            }
 	            if (this.shouldFlipLoaders && !this.flipped) {
 	                this.filteredSprite.swapChildren(this.firstFace, this.secondFace);
@@ -493,11 +488,11 @@
 					.unbind();
 			}, this));  
     };
-    $air.fx.SingleFlip.prototype = new $air.fx.Effect();
-    $air.fx.SingleFlip.prototype.constructor = $air.fx.SingleFlip; 
+    $.air.fx.SingleFlip.prototype = new $.air.fx.Effect();
+    $.air.fx.SingleFlip.prototype.constructor = $.air.fx.SingleFlip; 
     
-    $air.fx.Zoom = function(config){
-        $air.fx.Effect.call(this, config); 
+    $.air.fx.Zoom = function(config){
+        $.air.fx.Effect.call(this, config); 
 		
         this.firstFace = this.config.htmlLoader, 
 		this.duration = this.config.duration; 
@@ -508,11 +503,11 @@
             height: this.firstFace.height
         };
 			
-        this.tween = new $air.anim.Tween({
+        this.tween = new $.air.anim.Tween({
 			begin: 0,
 			end: 1,
 			duration: this.duration,
-			effect: $air.anim.linear
+			effect: $.air.anim.linear
 		}); 
 		$(this.tween)
 			.bind("started", $.proxy(function() {
@@ -528,10 +523,8 @@
 			.bind("tweening", $.proxy(function(e, value, percent) { 
 				var reversed = this.tween.reversed;
 	            var transition = reversed ? value : 1 - value;
-				
-				air.trace("zooooming");  
-				
-	            var newBounds = $air.bounds.resize(transition, this.tween.bounds, this.originalBounds);
+
+	            var newBounds = $.air.bounds.resize(transition, this.tween.bounds, this.originalBounds);
 	            this.firstFace.x = newBounds.x;
 	            this.firstFace.y = newBounds.y;
 	            this.firstFace.scaleX = newBounds.width / this.originalBounds.width;
@@ -539,8 +532,7 @@
 	            this.firstFace.alpha = 1 - transition;
 			}, this))
 			.bind("finished", $.proxy(function(e, interactive) {
-				air.trace("zoooom finish");
-				
+
 				var reversed = this.tween.reversed;
 	            var originalBounds = this.originalBounds;
 	            this.firstFace.x = originalBounds.x;
@@ -559,12 +551,12 @@
 					.unbind();
 			}, this)); 
     };
-    $air.fx.Zoom.prototype = new $air.fx.Effect();
-    $air.fx.Zoom.prototype.constructor = $air.fx.Zoom; 
+    $.air.fx.Zoom.prototype = new $.air.fx.Effect();
+    $.air.fx.Zoom.prototype.constructor = $.air.fx.Zoom; 
     
     /* 3D fx factory */
-    $air.fx.EffectFactory = function() { };
-    $air.fx.EffectFactory.prototype = (function() {
+    $.air.fx.EffectFactory = function() { };
+    $.air.fx.EffectFactory.prototype = (function() {
     
         return {
             create: function(type, config){
@@ -572,22 +564,22 @@
                 type = type.toLowerCase();
                 switch (type) {
                     case "flip":
-                        return new $air.fx.Flip(config);
+                        return new $.air.fx.Flip(config);
                     case "singleflip":
                     case "single-flip":
-                        return new $air.fx.SingleFlip(config);
+                        return new $.air.fx.SingleFlip(config);
                     case "zoom":
-                        return new $air.fx.Zoom(config);
+                        return new $.air.fx.Zoom(config);
                 }
             }
         };
     })();
     
     /** jQuery.air.db ***/
-    $air.fx.blender = {};
+    $.air.fx.blender = {};
     
     /* Abstract blender effect */
-    $air.fx.blender.Effect = function(config){ 
+    $.air.fx.blender.Effect = function(config){ 
 		
         this.config = $.extend({}, {
             htmlLoader: null,
@@ -596,7 +588,7 @@
             shaderConfig: {},
             axis: null,
             duration: 200,
-            transition: $air.anim.linear
+            transition: $.air.anim.linear
         }, config || {}); 
 		
 		this.isLoaded = false;
@@ -609,7 +601,7 @@
         this.hideOnFinish = false;
         this.disableInteraction = false; 
         
-        this.tween = new $air.anim.Tween({
+        this.tween = new $.air.anim.Tween({
 			begin: 0,
 			end: 1,
 			duration: this.config.duration,
@@ -618,7 +610,7 @@
 		
 		this.init();
     };
-    $air.fx.blender.Effect.prototype = (function(){ 
+    $.air.fx.blender.Effect.prototype = (function(){ 
         //Private methods
 		function resetFilters(target, filters) {
             var oldFilters = target.filters;
@@ -724,33 +716,33 @@
     })();
     
     /* Custom blender fx */
-    $air.fx.blender.Dissolve = function(config){ 
-        $air.fx.blender.Effect.call(this, config);
+    $.air.fx.blender.Dissolve = function(config){ 
+        $.air.fx.blender.Effect.call(this, config);
     };
-    $air.fx.blender.Dissolve.prototype = new $air.fx.blender.Effect();
-    $air.fx.blender.Dissolve.prototype.constructor = $air.fx.blender.Dissolve;
+    $.air.fx.blender.Dissolve.prototype = new $.air.fx.blender.Effect();
+    $.air.fx.blender.Dissolve.prototype.constructor = $.air.fx.blender.Dissolve;
     
-    $air.fx.blender.Page = function(config){ 
-        $air.fx.blender.Effect.call(this, config);
+    $.air.fx.blender.Page = function(config){ 
+        $.air.fx.blender.Effect.call(this, config);
     };
-    $air.fx.blender.Page.prototype = new $air.fx.blender.Effect();
-    $air.fx.blender.Page.prototype.constructor = $air.fx.blender.Page;
+    $.air.fx.blender.Page.prototype = new $.air.fx.blender.Effect();
+    $.air.fx.blender.Page.prototype.constructor = $.air.fx.blender.Page;
     
-    $air.fx.blender.Waves = function(config){ 
-        $air.fx.blender.Effect.call(this, config);
+    $.air.fx.blender.Waves = function(config){ 
+        $.air.fx.blender.Effect.call(this, config);
     };
-    $air.fx.blender.Waves.prototype = new $air.fx.blender.Effect();
-    $air.fx.blender.Waves.prototype.constructor = $air.fx.blender.Waves;
+    $.air.fx.blender.Waves.prototype = new $.air.fx.blender.Effect();
+    $.air.fx.blender.Waves.prototype.constructor = $.air.fx.blender.Waves;
     
-    $air.fx.blender.Shake = function(config){ 
-        $air.fx.blender.Effect.call(this, config);
+    $.air.fx.blender.Shake = function(config){ 
+        $.air.fx.blender.Effect.call(this, config);
     };
-    $air.fx.blender.Shake.prototype = new $air.fx.blender.Effect();
-    $air.fx.blender.Shake.prototype.constructor = $air.fx.blender.Shake;
+    $.air.fx.blender.Shake.prototype = new $.air.fx.blender.Effect();
+    $.air.fx.blender.Shake.prototype.constructor = $.air.fx.blender.Shake;
     
     /* Blender fx factory */
-    $air.fx.blender.EffectFactory = function(){};
-    $air.fx.blender.EffectFactory.prototype = (function(){
+    $.air.fx.blender.EffectFactory = function(){};
+    $.air.fx.blender.EffectFactory.prototype = (function(){
     
         return {
             create: function(type, config){
@@ -761,25 +753,25 @@
                 
                 switch (type) {
                     case "dissolve":
-                        return new $air.fx.blender.Dissolve($.extend({}, {
+                        return new $.air.fx.blender.Dissolve($.extend({}, {
 				            url: "app:/lib/disolve.pbj",
 				            duration: 500,
-				            transition: $air.anim.linear
+				            transition: $.air.anim.linear
 				        }, config || {}));
                     case "page":
-                        return new $air.fx.blender.Page($.extend({}, {
+                        return new $.air.fx.blender.Page($.extend({}, {
 				            url: "app:/lib/page.pbj",
 				            duration: 1200,
-				            transition: $air.anim.ease
+				            transition: $.air.anim.ease
 				        }, config || {}));
                     case "waves":
-                        return new $air.fx.blender.Waves($.extend({}, {
+                        return new $.air.fx.blender.Waves($.extend({}, {
 				            url: "app:/lib/waves.pbj",
 				            duration: 1200,
-				            transition: $air.anim.linear
+				            transition: $.air.anim.linear
 				        }, config || {}));
                     case "shake": 
-                        return new $air.fx.blender.Shake($.extend({}, {
+                        return new $.air.fx.blender.Shake($.extend({}, {
             				url: "app:/lib/shake.pbj",
             				duration: 1000
 						}, config || {}));
@@ -795,9 +787,9 @@
     /* Query */
     /* Table */
     /* Database */
-    $air.db = {};
+    $.air.db = {};
     
-    $air.db.Query = function(connection){
+    $.air.db.Query = function(connection){
         this.connection = connection;
         
         //var table = this; 
@@ -806,11 +798,9 @@
         //	$(table).bind(key, $.proxy(table[key], table)); 
         //});
     };
-    $air.db.Query.prototype = (function(){
+    $.air.db.Query.prototype = (function(){
         //Private methods
-        function setParm(key, value){
-			air.trace("setting parm");
-			air.trace(key); air.trace(value);
+        function setParm(key, value){ 
 			if (!$.isFunction(value)) {
 				this.statement.parameters[":" + key] = value;
 			}
@@ -820,17 +810,12 @@
         function onSuccess(){ 
             var result = this.statement.getResult(), 
 				data = result ? result.data : {};
-			
-            air.trace("successful query"); 
-            air.trace(this.statement.text); 
-			
+
             $(this).trigger("success", [result]);
             
 			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onSuccess, this));
         }
-        function onError(error){
-			air.trace("query error");
-			air.trace(error);
+        function onError(error){ 
             $(this).trigger("error", [error]);
             
 			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
@@ -844,8 +829,6 @@
                 this.statement.clearParameters();
                 $.each(parms, $.proxy(setParm, this)); 
 				
-				$.each(this.statement.parameters, function(k, v) { air.trace(k); air.trace(v); });
-			 	
 				this.statement.addEventListener(air.SQLEvent.RESULT, $.proxy(onSuccess, this));
 				this.statement.addEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
                 this.statement.execute(); //-1, new air.Responder($.proxy(onSuccess, this), $.proxy(onFailure, this)));
@@ -853,19 +836,16 @@
         };
     })();
     
-    $air.db.Table = function(name, connection){
+    $.air.db.Table = function(name, connection){
         this.name = name; 
         this.connection = connection;
 
-		air.trace("table constructor");
         this.init();
     };
-    $air.db.Table.prototype = (function(){
+    $.air.db.Table.prototype = (function(){
         //Private methods
-        function executeQuery(sql, parms, successCallback, failureCallback){
-            air.trace("executing query");
-            air.trace(sql);
-            var query = new $air.db.Query(this.connection);
+        function executeQuery(sql, parms, successCallback, failureCallback){ 
+            var query = new $.air.db.Query(this.connection);
 
             if (successCallback) { 
 				function onSuccess(e, result) { 
@@ -908,14 +888,14 @@
                     columnDefinitions.push(columnDefinition); 
                 }
 
-	            var query = new $air.db.Query(this.connection),
+	            var query = new $.air.db.Query(this.connection),
 					sql = "CREATE TABLE IF NOT EXISTS " + this.name + " ( " + columnDefinitions.join() + ")",  
 					parms = {}; 
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
 			},
             get: function(parms, onSuccess, onFailure){ 
-				var query = new $air.db.Query(this.connection),  sql = "SELECT * FROM " + this.name;
+				var query = new $.air.db.Query(this.connection),  sql = "SELECT * FROM " + this.name;
 					
                 if (!$.isEmptyObject(parms)) {
                     var clauses = [];
@@ -934,7 +914,7 @@
                     return;
                 } 
 				
-	            var query = new $air.db.Query(this.connection), sql = "";
+	            var query = new $.air.db.Query(this.connection), sql = "";
                 if (!parms.id) {
                     sql = "INSERT INTO " + this.name + " ";
 
@@ -966,7 +946,7 @@
             del: function(parms, onSuccess, onFailure){
                 if ($.isEmptyObject(parms) || !parms.id) { return; }
                 
-                var query = new $air.db.Query(this.connection), 
+                var query = new $.air.db.Query(this.connection), 
 					sql = "DELETE FROM " + this.name + " WHERE id = :id";
 				
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
@@ -974,7 +954,7 @@
         };
     })();
     
-    $air.db.Database = function(key, config){
+    $.air.db.Database = function(key, config){
         this.key = key;
         this.config = $.extend({}, {
             tables: {} 
@@ -990,23 +970,19 @@
         
         this.init();
     };
-    $air.db.Database.prototype = (function(){
+    $.air.db.Database.prototype = (function(){
         //Private methods 
         
         //Private events
-        function onTableReady(result){ 
-			air.trace("table created"); 
-			
+        function onTableReady(result){  
 			this.readyCount++;
 			if (this.tableCount === this.readyCount) { $(this).trigger("opened"); }
         }
-        function onTableError(result){ air.trace(result.error); $(this).trigger("error"); };				
+        function onTableError(result){ $(this).trigger("error"); };				
 				
-        function onOpen(event){
-            air.trace("database opened - creating tables");
-            
+        function onOpen(event){  
 			for(var tableKey in this.config.tables) { 
-				var table = new $air.db.Table(tableKey, this.connection);  
+				var table = new $.air.db.Table(tableKey, this.connection);  
 				this.tables(tableKey, table);
 				this.tableCount++;
 				
@@ -1019,15 +995,12 @@
 				$(this).trigger("opened");
 			}
         }
-        function onError(event){
-            air.trace("database open error - " + event.text); 
-			
+        function onError(event){ 
             $(this).trigger("openError", [{ error: event.text }]);
         }
         
         return { 
-            init: function(){
-            	air.trace("db initing");  
+            init: function(){ 
                 this.connection.addEventListener(air.SQLEvent.OPEN, $.proxy(onOpen, this));
                 this.connection.addEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this)); 
             },
@@ -1048,7 +1021,7 @@
 					$(this).bind("openError", onFailure);
 				}
 				
-                this.connection.openAsync(this.file, air.SQLMode.CREATE, null, false, 1024, $air.crypto.encrypt(pwd));
+                this.connection.openAsync(this.file, air.SQLMode.CREATE, null, false, 1024, $.air.crypto.encrypt(pwd));
             },
             
             isInitialized: function(){
@@ -1056,8 +1029,7 @@
             },
             
             tables: function(name, table){
-                if (!table) {
-                    air.trace("getting table from cache");
+                if (!table) { 
                     return this.table[name];
                 }
                 if (!this.table[name]) {
@@ -1068,7 +1040,7 @@
     })();
 
 	/*** jQuery.air.files ***/
-	$air.files = {
+	$.air.files = {
 		temp: function(id) { 
 			var dir = air.File.applicationStorageDirectory.resolvePath("temp/");
 			return id ? dir.resolvePath(id) : dir.resolvePath("$temp$");
@@ -1143,7 +1115,7 @@
 					
 					var img = new air.Bitmap(scaled),
 						bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
-					if (!$air.files.write(resized, bytes)) { onResize(false); }
+					if (!$.air.files.write(resized, bytes)) { onResize(false); }
 					onResize(true, resized);
 				};
 				function onError(event) {
@@ -1160,19 +1132,19 @@
     
     
     /*** jQuery.air.app ***/
-    $air.app = {};
+    $.air.app = {};
 	
 	/* FX */ 
-    $air.app.EffectCache = function(){
+    $.air.app.EffectCache = function(){
         this.fx = {};
     };
-    $air.app.EffectCache.prototype = (function(){
+    $.air.app.EffectCache.prototype = (function(){
     
         return { 
             get3DEffect: function(key, type, config){
                	key = key + "-3D-" + type; 
                 if (!this.fx[key]) {
-                    var factory = new $air.fx.EffectFactory();
+                    var factory = new $.air.fx.EffectFactory();
                     this.fx[key] = factory.create(type, config);
 				}
                 return this.fx[key];
@@ -1180,7 +1152,7 @@
             getBlenderEffect: function(key, type, config){
 				key = key + "-blender-" + type;
                	if (!this.fx[key]) {
-                    var factory = new $air.fx.blender.EffectFactory();
+                    var factory = new $.air.fx.blender.EffectFactory();
                     this.fx[key] = factory.create(type, config);
 				}
                 return this.fx[key];
@@ -1189,8 +1161,8 @@
     })();
     
     /* Model */
-    $air.app.Model = function(){ };
-    $air.app.Model.prototype = (function(){
+    $.air.app.Model = function(){ };
+    $.air.app.Model.prototype = (function(){
         //Private methods 
         
         //Private events
@@ -1236,20 +1208,20 @@
     })();
     
     /* View */
-    $air.app.View = function(loader){  
+    $.air.app.View = function(loader){  
         this.htmlLoader = loader; 
         
         this.elements = {}; 
 		
         this.init();
     };
-    $air.app.View.prototype = (function(){
+    $.air.app.View.prototype = (function(){
         //Private methods 
         
         //Private events
         
         return {  
-            toString: function(){ return "$air.app.View"; },
+            toString: function(){ return "$.air.app.View"; },
             init: function(){},
             
 			$: function(selector) {
@@ -1260,7 +1232,7 @@
     })();
 	
 	/* Presenter */
-	$air.app.Presenter = function(fxCache, eventBus, view, dependencies) { 
+	$.air.app.Presenter = function(fxCache, eventBus, view, dependencies) { 
 		this.fxCache = fxCache;
 		this.eventBus = eventBus; 
 		this.view = view;
@@ -1275,7 +1247,7 @@
 
 		this.init();
 	};
-	$air.app.Presenter.prototype = (function() {
+	$.air.app.Presenter.prototype = (function() {
         
         //3D fx 
         function getFlipXEffect(to, config){
@@ -1293,10 +1265,7 @@
         };
         function getZoomEffect(config){
             var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, duration: 300 }, config || {} ); 
-			
-			air.trace("zoom effect"); 
-			air.trace(fxConfig.duration);
-            return this.fxCache.get3DEffect(this.key, "zoom", fxConfig);
+			return this.fxCache.get3DEffect(this.key, "zoom", fxConfig);
         };
         
         //Blender fx
@@ -1357,11 +1326,22 @@
 			go: function() {}, //Default is empty - expected to be specified in presenter proto  
 			
 			handleKeyDown: function(e) { 
-				$.each(this.events.keydown, $.proxy(function(selector, callback) { 
-					if(air.Keyboard[selector.toUpperCase()] === e.keyCode) { 
+				var handled = false, defCallback = this.events.keydown["def"];
+				$.each(this.events.keydown, $.proxy(function(selector, callback) {  
+					var keyCode = selector.toUpperCase();
+					switch(keyCode) {
+						case "DEL":
+						keyCode = "DELETE";
+						break;
+					}
+					
+					if(air.Keyboard[keyCode] === e.keyCode) { 
 						callback.call(this);
+						handled = true;
 					}
 				}, this));
+
+				if(!handled && defCallback) { defCallback.call(this); }
 			}, 
 			
 			trigger: function(e, args) {
@@ -1409,9 +1389,7 @@
 			},
 
             //FX methods 
-            flipX: function(to, reversed){
-				air.trace("flipping x");
-				
+            flipX: function(to, reversed){ 
                 var effect = getFlipXEffect.call(this, to); 
 				$(effect).bind("finished", $.proxy(function() {  
 					if (reversed) {
@@ -1455,7 +1433,7 @@
             },
             blenderShow: function(){ 
                 var effect = getPageEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.enable(); }, this));
+				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
                 effect.keepTheEffect = false; 
 				effect.start(true);  
             },
@@ -1479,7 +1457,7 @@
 				
                 var effect = getZoomEffect.call(this); 
 				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
-                effect.tween.bounds = $air.bounds.get(el); 
+                effect.tween.bounds = $.air.bounds.get(el); 
 				effect.start(true); 
             },
             zoomShow: function(el){ 
@@ -1490,20 +1468,20 @@
 				
                 var effect = getZoomEffect.call(this); 
 				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
-                effect.tween.bounds = $air.bounds.get(el); 
+                effect.tween.bounds = $.air.bounds.get(el); 
 				effect.start(false); 
             }
 		};
 	})();
 	
 	/* Transition */
-	$air.app.Transition = function(from, to) {
+	$.air.app.Transition = function(from, to) {
 		this.from = from;
 		this.to = to;
 		
 		air.trace(this.from.key + "->" + this.to.key);
 	};
-	$air.app.Transition.prototype = (function() {
+	$.air.app.Transition.prototype = (function() {
 		
 		return {
 			play: function() {
@@ -1514,24 +1492,21 @@
 	})(); 
 	
 	/* Service */
-	$air.app.Service = function(dependencies) { 
+	$.air.app.Service = function(dependencies) { 
 		if(dependencies) { 
 			for(var key in dependencies) { 
 				this[key] = dependencies[key]; 
 			}
 		}
 	};
-	$air.app.Service.prototype = (function() { return {}; })();
+	$.air.app.Service.prototype = (function() { return {}; })();
 	
 	/* Shell */
-	$air.app.Shell = function(appDef) { 
-		air.trace("uhhhhh");  
+	$.air.app.Shell = function(appDef) {  
 		this.appDef = appDef;
 
-		air.trace("env set up");
 		this.env = air.NativeApplication.nativeApplication;
-		
-		air.trace("stage set up");
+		 
 		this.stage = htmlLoader.stage;
 		this.htmlLoaders = {};
 		this.htmlLoaderCount = 0;
@@ -1539,9 +1514,8 @@
 		
 		this.history = []; 
 		this.staged = {};
-		
-		air.trace("default presenter dependency set up");
-		this.effectCache = new $air.app.EffectCache();
+
+		this.effectCache = new $.air.app.EffectCache();
 		
 		this.eventBus = {};
 		this.events = $.extend({}, {
@@ -1555,15 +1529,12 @@
 		
 		this.init();
 	};
-	$air.app.Shell.prototype = (function() { 
+	$.air.app.Shell.prototype = (function() { 
         //Private methods     
         
         //Private events
-        function onKeyDown(e){
-			air.trace("stage key down");
-			air.trace(e);
-			air.trace(e.keyCode);
-            if (e.target.stage.mouseChildren == true) { 
+        function onKeyDown(e){ 
+            if (e.target.stage.mouseChildren == true) {  
 				this.context.handleKeyDown(e); 
             }
         }
@@ -1572,48 +1543,40 @@
         
         function onHtmlLoaderLoad(e){ 
 			var loader = e.target;
-			$air.loaders.html.fitToContent(loader);  
+			$.air.loaders.html.fitToContent(loader);  
 			this.stage.addChild(loader);
-			
-            //air.trace(e.data.view.config.path + "loaded");
+
             this.loadCount++;
-            
-            air.trace("loaderCount: " + this.htmlLoaderCount);
-            air.trace("loadcount: " + this.loadCount);
+
             if (this.loadCount === this.htmlLoaderCount) { this.go(); }
         }  
 		
-		function onPresenterEvent(e, sender, data) {
-			air.trace(e.type);
-			
+		function onPresenterEvent(e, sender, data) { 
 			switch(e.type) {
-				case "hidden":
-				
-				air.trace("killing presenter: " + sender.key);
+				case "hidden": 
 				var presenter = this.staged[sender.key];
 				if(!presenter) return;
 				presenter.dispose();
-					
+				
 				delete this.staged[sender.key];
 				break; 
-				case "shown":
+				case "shown": 
+				this.stage.focus = sender.view.htmlLoader;
+				
 				this.context = sender;
 				this.staged[sender.key] = sender; 
 				break;
 				default: 
-				this.context = sender; 
-	
+				this.context = sender;  
 			 	this.events[e.type].call(this, data); 
 				break;
 			}
 		}
 
 		return {
-			init: function() { 
-                air.trace("shell initializing");  
+			init: function() {  
 
-                if (this.idleThreshold) {
-                	air.trace(this.idleThreshold);
+                if (this.idleThreshold) { 
                     this.env.idleThreshold = this.idleThreshold;
                     this.env.addEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
                 }
@@ -1622,10 +1585,9 @@
                 //native air element event attachment 
                 this.stage.transform.perspectiveProjection.focalLength = 800;
                 this.stage.addEventListener("keyDown", $.proxy(onKeyDown, this), true); 
-				
-				air.trace("pre loading html loaders");
+				 
 				$.each(this.appDef.htmlLoaders(), $.proxy(function(key, htmlLoaderConfig) { 
-					var loader = $air.loaders.html.create(htmlLoaderConfig);
+					var loader = $.air.loaders.html.create(htmlLoaderConfig);
 					loader.addEventListener(air.Event.COMPLETE, $.proxy(onHtmlLoaderLoad, this)); 
 					
 					this.htmlLoaders[key] = loader;
@@ -1653,11 +1615,11 @@
 			},
 
             models: function(key) {
-				var Model = this.appDef.models(key) || $air.app.Model;
+				var Model = this.appDef.models(key) || $.air.app.Model;
 				return new Model();
 			},
 			views: function(key) { 
-				var View = this.appDef.views(key) || $air.app.View;  
+				var View = this.appDef.views(key) || $.air.app.View;  
 				
 				var view = new View(this.htmlLoaders[key]);
 				view.key = key;
@@ -1669,13 +1631,13 @@
 					if(!dependencies) return current;
 
 					for(var key in dependencies) { 
-						if(current[key]) continue;
+//						if(current[key]) continue;
 						current[key] = dependencies[key]; 
 					} 
 					return current; 
 				}
 			
-				var Presenter = this.appDef.presenters(key) || $air.app.Presenter;
+				var Presenter = this.appDef.presenters(key) || $.air.app.Presenter;
 				 
 				var presenter = new Presenter(this.effectCache, this.eventBus, this.views(key), dependencies);
 				presenter.key = key; 
@@ -1683,11 +1645,11 @@
 				return presenter;
 			}, 
 			transitions: function(from, to) {
-				var Transition = this.appDef.transitions(from.key, to.key) || $air.app.Transition; 
+				var Transition = this.appDef.transitions(from.key, to.key) || $.air.app.Transition; 
 				return new Transition(from, to);
 			},
 			services: function(key, dependencies) { 
-				var Service = this.appDef.services(key) || $air.app.Service;
+				var Service = this.appDef.services(key) || $.air.app.Service;
 				return new Service(dependencies);
 			},
             
@@ -1707,7 +1669,7 @@
 					return;
 				}
 				
-				var transition = this.transitions(this.context, presenter);
+				var transition = this.transitions(this.context, presenter); 
 				transition.play();  
             },
 			restore: function() { window.nativeWindow.restore(); }, 
@@ -1721,7 +1683,7 @@
 		};
 	})(); 
 	
-	$air.app.Definition = function(partial) { 
+	$.air.app.Definition = function(partial) { 
 		this.partial = $.extend({}, { 
 			models: {}, 
 			views: {}, 
@@ -1735,7 +1697,7 @@
 	
 		this.init();
 	};
-	$air.app.Definition.prototype = (function() {
+	$.air.app.Definition.prototype = (function() {
 		//Private methods 
 		function createClass(baseClass, proto) {  
 			function O(){
@@ -1758,12 +1720,8 @@
 		
 		function defineClasses(classMappings) {
 			$.each(classMappings, $.proxy(function(key, baseClass) {
-				key = key.toLowerCase();
-				air.trace(key + " init");
-				
-				for(var c in this.partial[key]) {
-					air.trace(c+ " " + key + " init"); 
-					
+				key = key.toLowerCase(); 
+				for(var c in this.partial[key]) { 
 					switch(key) {  
 						case "views": 	
 						
@@ -1790,8 +1748,7 @@
 							}
 						}
 
-						air.trace("htmlLoaderConfig.path = " + htmlLoaderConfig.path);
-						this.full[key][c] = createClass(baseClass, viewProto); //this.full["transitions"]["list"]["detail"] = $air.app.Transition; (customized);
+						this.full[key][c] = createClass(baseClass, viewProto); //this.full["transitions"]["list"]["detail"] = $.air.app.Transition; (customized);
 						this.full["htmlLoaders"][c] = htmlLoaderConfig;  //this.full["htmlLoaders"]["list"] = { path: "".... 
 						
 						break; 
@@ -1805,20 +1762,20 @@
 						for(var prop in transitionProto) {
 							var val = transitionProto[prop];
 					
-							this.full[key][c][prop] = createClass(baseClass, { play: val }); //this.full["transitions"]["list"]["detail"] = $air.app.Transition; (customized);
+							this.full[key][c][prop] = createClass(baseClass, { play: val }); //this.full["transitions"]["list"]["detail"] = $.air.app.Transition; (customized);
 						}
 
 						break;
 						
 						default:
 						var proto = this.partial[key][c];
-						this.full[key][c] = createClass(baseClass, proto); //this.full["presenters"]["list"] = $air.app.Presenter; (customized)
+						this.full[key][c] = createClass(baseClass, proto); //this.full["presenters"]["list"] = $.air.app.Presenter; (customized)
 						break;
 					} 
 				}
 			}, this));
 			
-			this.full["shell"] = createClass($air.app.Shell, this.partial["shell"]);
+			this.full["shell"] = createClass($.air.app.Shell, this.partial["shell"]);
 		};
 		
 		function getClass(type, key) {} 
@@ -1831,11 +1788,11 @@
 		return { 
 			init: function() { 
 				defineClasses.call(this, {
-					"models": $air.app.Model,
-					"views": $air.app.View,
-					"presenters": $air.app.Presenter, 
-					"transitions": $air.app.Transition,
-					"services": $air.app.Service 
+					"models": $.air.app.Model,
+					"views": $.air.app.View,
+					"presenters": $.air.app.Presenter, 
+					"transitions": $.air.app.Transition,
+					"services": $.air.app.Service 
 				});
 			}, 
 			models: function(key) { return lookup.call(this, "models", key); },
@@ -1850,43 +1807,27 @@
 	
     
     /* Application */
-    $air.app.Application = function(partial){ 
-		this.def = new $air.app.Definition(partial);
+    $.air.app.Application = function(partial){ 
+		this.def = new $.air.app.Definition(partial);
 		
         this.init();
     };
-    $air.app.Application.prototype = (function(){
+    $.air.app.Application.prototype = (function(){
 		//Private methods    
 		
 		//Private events  
 		
         return { 
             //Initialization - events added/disposed
-            toString: function(){ return "$air.app.Application"; },
-            init: function(){ 
-                air.trace("application initializing");  
-                
+            toString: function(){ return "$.air.app.Application"; },
+            init: function(){  
                 //custom fx loading?    
-				
-				air.trace("shell init"); 
+
 				var Shell = this.def.shell();    
 				this.shell = new Shell(this.def);  
-            } 
+            }
         };
     })();
-    
-    
-    /*** jquery.air ***/  
-	$.air = {};
-	$.air.Database = $air.db.Database;
-//	$.air.Model = $air.app.Model;
-//	$.air.View = $air.app.View;
-//	$.air.Presenter = $air.app.Presenter;
-//	$.air.Shell = $air.app.Shell;
-//	$.air.Application = $air.app.Application;
-	
-    $.air.mvp = function(definition) {
-        air.trace("return new air application"); 
-		return new $air.app.Application(definition);
-    };
-})(jQuery);
+
+    $.air.mvp = function(definition) { return new $.air.app.Application(definition); };
+})(jQuery); 
