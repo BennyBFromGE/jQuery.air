@@ -279,7 +279,10 @@
 							this.view.getBirthday().val(contact.birthDate);
 							this.view.getNotes().val(contact.notes);
 							
-							//... photo
+							var imageUrl = this.contactService.getImageUrl(contact);
+							if(!imageUrl) { return; }
+							
+							this.view.getPhoto().attr("src", imageUrl);
 						}, 
 						readForm: function() { 
 							var contact = this.activeContact;
@@ -292,7 +295,8 @@
 							contact.birthDate = this.view.getBirthday().val();
 							contact.notes = this.view.getNotes().val();												
 			
-							//... photo?
+							var photoSrc = this.view.getPhoto().attr("src");
+							contact.photo = !this.contactService.isImageDefault(photoSrc) ? this.contactService.readImage(photoSrc) : null;
 							
 							return contact;
 						}, 
@@ -382,8 +386,11 @@
 							this.view.getWebsite().text(contact.website);
 							this.view.getBirthday().text(contact.birthDate);
 							this.view.getNotes().text(contact.notes);
+
+							var imageUrl = this.contactService.getImageUrl(contact);
+							if(!imageUrl) { return; }
 							
-							//... photo
+							this.view.getPhoto().attr("src", imageUrl);
 						},
 						close: function() {
 							this.trigger("displayContactCanceled", this.activeContact);
@@ -566,6 +573,19 @@
 						},
 						del: function(criteria, onSuccess, onFailure) {
 							this.db.tables("contact").del(criteria, onSuccess, onFailure); 
+						}, 
+						getImageUrl: function(contact) { 
+							if(!contact.photo) { return; }
+							var imageFile = $.air.files.temp(contact.id);
+							$.air.files.write(imageFile, contact.photo);
+							
+							return imageFile.url + "?" + Math.random();
+						},
+						isImageDefault: function(imageSrc) {
+							return imageSrc && (imageSrc.indexOf("/assets/image_unavailable.png") != -1)
+						},
+						readImage: function(imageSrc) { 
+							return $.air.files.read(new air.File(imageSrc));
 						}
 					};
 	

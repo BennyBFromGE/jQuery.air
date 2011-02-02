@@ -98,8 +98,8 @@
                 return toByteArray(hash(xor(random(), concat(value))));
             }
         };
-    })();
-    
+    })(); 
+	
     /*** jQuery.air.bounds - utlity ***/
     $.air.bounds = {
         get: function(el){ 
@@ -123,9 +123,12 @@
             };
         }
     };
-    
+	
     /*** jQuery.air.HTMLLoader - htmlLoader utility ***/ 
 	$.air.loaders = {
+		url: { 
+		
+		},
 		html: {
 			create: function(config){
 				config =  $.extend({}, {  
@@ -156,8 +159,209 @@
 			}
 		}
 	};
+	
+	$.air.window = {
+		create: function(config) { 
+			config =  $.extend({}, {  
+				maximizable: false, 
+				minimizable: false,  
+				resizable: false, 
+				transparent: true, 
+				systemChrome: "none", 
+				type: air.NativeWindowType.UTILITY
+			}, config || {}); 
+
+			var nativeOptions = new air.NativeWindowInitOptions();   
+			$.each(config, function(key, val) { nativeOptions[key] = val; });
+
+			return air.HTMLLoader.createRootWindow(false, nativeOptions, false);
+		}
+	};
     
+	
+	/*** jQuery.air.request ***/
+	$.air.request = function( options ) { 
+		options = typeof( options ) == "string" ? {url:options} : options;  
+		this.options = {};
+		
+		this.__eventListeners = new Object();
+		
+		this.request = new air.URLRequest(options.url); 
+		
+		this.xhr = new air.URLLoader( );
+		this.xhr.addEventListener(air.Event.COMPLETE, $.proxy(function ( event ) {
+			this.trigger( 'air.success' ,[event.target.data, event] );
+		}, this)); 
+		this.xhr.addEventListener( air.IOErrorEvent.IO_ERROR, $.proxy(function ( event ) {
+			this.trigger( 'air.exception', [ event ] );
+			this.trigger( events.ioerror, [ event ] );
+		}, this)); 
+		this.xhr.addEventListener( air.SecurityErrorEvent.SECURITY_ERROR, $.proxy(function ( event ) {
+			this.trigger( 'air.exception', [ event ] );
+			this.trigger( events.securityerror, [ event ] );
+		}, this)); 
+		this.xhr.addEventListener( air.ProgressEvent.PROGRESS, $.proxy(function ( event ) {
+			var status = Math.round( (event.bytesTotal/event.bytesLoaded)*100 );
+			this.trigger( 'air.progress', [ status, event.bytesLoaded, event.bytesTotal, event ] );
+		}, this));	
+		
+		this.setOptions( options );
+	};
+	$.air.request.prototype = (function() {
+		
+		return { 
+			url: function() {},
+			setOptions: function(options) {
+				options = options || {};
+				options = typeof( options ) == "string" ? {data: options} : options;
+				this.options = $.extend({}, {
+					cookies: true,
+					cache: true,
+					followRedirects: true,
+					method: 'GET',
+					userAgent: 'jQuery.AIR (http://code.google.com/p/jquery-air/)',
+					contentType: 'application/x-www-form-urlencoded',
+					responseType: air.URLLoaderDataFormat.TEXT,
+					responseTypeEncoding: "application/xml",
+					xml: null,
+					auth: {
+						host: null,
+						name: null,
+						password: null
+					},
+					headers: {
+						'X-Requested-With': null,
+						'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+						'Accept-Language': 'de-de,de;q=0.8,en-us;q=0.5,en;q=0.3',
+						'Accept-Encoding': 'gzip,deflate',
+						'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+						'Keep-Alive': '300',
+						'Connection': 'keep-alive'
+					},
+					triggerEventsGlobal: true 
+				}, options);
+				var data = this.options.data, url = this.options.url, method = this.options.method;
+				
+				this.request = new air.URLRequest (url);
+				
+				this.request.cacheResponse = this.options.cache;
+				this.request.useCache = this.options.cache;
+				this.request.userAgent = this.options.userAgent;
+				this.request.followRedirects = this.options.followRedirects;
+				this.request.manageCookies = this.options.cookies;
+				this.request.contentType = this.options.contentType;
+				
+				var variables = new air.URLVariables ( );
+				if( data ) {
+					if( A.type( data ) == "string" ) {
+						var d = {};
+						var k = data.split( '&' );
+						k.each( function ( kk ) {
+							var t = kk.split( '=' );
+							d[ t[ 0 ] ] = t[ 1 ];
+						} );
+						data = d;
+					}
+					for( var key in data ) {
+						if( data[key] )
+						variables[ key ] = data[ key ];
+					}
+					this.request.data = variables;
+				}
+				
+				if( this.options.raw ) {
+					this.request.data = this.options.raw;
+					//this.request.contentType = 'application/xml';
+				}
+				
+				if( this.options.headers ) {
+					for( var key in this.options.headers ) {
+						if( this.options.headers[key] )
+						this.request.requestHeaders.push( new air.URLRequestHeader ( key, this.options.headers[ key ] ) );
+					}
+				}
+		
+				if( this.options.auth.name && this.options.auth.password ) {
+					air.URLRequestDefaults.setLoginCredentialsForHost ( this.options.auth.host, this.options.auth.name, this.options.auth.password  );
+					this.request.authenticate = true;
+				}
+				
+				this.request.method = method.toUpperCase();
+				
+				this.xhr.dataFormat = this.options.responseType;
+				
+				if(this.options.triggerEventsGlobal) {
+					this.bind( 'air.success', function(){$(document).trigger('air.request.success',arguments)} );
+					this.bind( 'air.progress', function(){$(document).trigger('air.request.progress',arguments)} );
+					this.bind( 'air.exception', function(){$(document).trigger('air.request.exception',arguments)} );
+				} 
+			},
+			load: function() {
+				try {
+					this.xhr.load( this.request );
+				} catch ( e ) {
+					this.trigger('exception', [ e, this.xhr ] );
+				}
+				this.trigger('request');
+			},
+			header: function() { },
+			bind: function(type, fn) {
+				type = events[ type ] ? events[ type ] : type;
+				if( type && A.type( fn ) == "function" ) {
+					if( !this.__eventListeners[ type ] ) this.__eventListeners[ type ] = [];
+					this.__eventListeners[ type ].push( fn );
+					this.xhr.addEventListener( type, fn );
+				} else if( type &&  A.type( fn ) == 'array' ) {
+					var that = this;
+					$.each( fn, function( i, f ) { that.bind( type, f ) } );
+				}
+				return this;
+			},
+			unbind: function(type, fn) {
+				var that = this;
+				type = events[ type ] ? events[ type ] : type;
+				if( type && A.type( fn ) == "function" ) {
+					this.xhr.removeEventListener( type, fn );
+					if( !this.__eventListeners[ type ] ) this.__eventListeners[ type ] = [];
+					$.each( this.__eventListeners[ type ], function( i, f ) {
+						if( f == fn )
+							delete that.__eventListeners[ type ][ i ];
+					} )
+				} else if( type &&  A.type( fn ) == 'array' ) {
+					var that = this;
+					$.each( fn, function( i, f ) { that.unbind( type, f ) } );
+				} else if( type && fn == undefined ) {
+					$.each( this.__eventListeners[ type ], function( i, f ) {
+						that.xhr.removeEventListener( type, f );
+					} );
+					this.__eventListeners[ type ] = [];
+				}
+				return this;
+			},
+			trigger: function(type, args) {
+				var that = this;
+				args = args || [];
+				if( type && this.__eventListeners[ type ] ) {
+					var w = true;
+					$.each( this.__eventListeners[ type ], function ( i, f ) {
+						if( w == true  )
+							if( f.apply( that, args  ) === false ) w = false;
+					} );
+				}
+				return this;
+			}
+		};
+	})();
+	
     /*** jQuery.air.filters ***/
+	/*** 
+	 * 
+	 * jQuery.air.filter
+	 * jQuery.air.dropShadowFilter
+	 * jQuery.air.filterFactory
+	 * 
+	 * 
+	 ***/
     $.air.filters = {};
     
     /* Abstract filter */
@@ -556,8 +760,7 @@
     
     /* 3D fx factory */
     $.air.fx.EffectFactory = function() { };
-    $.air.fx.EffectFactory.prototype = (function() {
-    
+    $.air.fx.EffectFactory.prototype = (function() { 
         return {
             create: function(type, config){
                 if (!type) { throw new Error("fx type required"); }
@@ -574,8 +777,7 @@
             }
         };
     })();
-    
-    /** jQuery.air.db ***/
+	
     $.air.fx.blender = {};
     
     /* Abstract blender effect */
@@ -694,7 +896,19 @@
 					.bind("started", $.proxy(onStart, this))
 					.bind("tweening", $.proxy(onTween, this))
 					.bind("finished", $.proxy(onFinish, this)); 
+				
+//				var request = new $.air.request({ 
+//				 	responseType: air.URLLoaderDataFormat.BINARY, 
+//					url: this.config.url 
+//				});
+//				request
+//					.bind("air.complete", $.proxy(onLoad, this))
+//					.load();
 					
+//				this.tween
+//					.bind("started", $.proxy(onStart, this))
+//					.bind("tweening", $.proxy(onTween, this))
+//					.bind("finished", $.proxy(onFinish, this));					
 			}, 
 	        start: function(reversed) {
 				if(!this.tween) return;
@@ -790,13 +1004,7 @@
     $.air.db = {};
     
     $.air.db.Query = function(connection){
-        this.connection = connection;
-        
-        //var table = this; 
-        //$.each({ onSuccess: function() {}, onFailure: function() {}}, function(key, value) { 
-        //	table[key] = value;
-        //	$(table).bind(key, $.proxy(table[key], table)); 
-        //});
+        this.connection = connection; 
     };
     $.air.db.Query.prototype = (function(){
         //Private methods
@@ -1038,6 +1246,32 @@
             } 
         };
     })();
+	
+	/*** jQuery.air.clipboard ***/
+	$.air.clipboard = (function() {
+		var clipboard = air.Clipboard.generalClipboard;
+		
+		return { 
+	        hasData: function(format) {
+	            return clipboard.hasFormat(format);
+	        }, 
+	        setData: function(format, data) {
+	            clipboard.setData(format, data);
+	        }, 
+	        setDataHandler: function(format, fn) {
+	            clipboard.setDataHandler(format, fn);
+	        }, 
+	        getData: function(format, transferMode) {
+	            clipboard.getData(format, transferMode);
+	        }, 
+	        clear: function() {
+	            clipboard.clear();
+	        }, 
+	        clearData: function(format) {
+	            clipboard.clearData(format);
+	        }
+		};
+	})();
 
 	/*** jQuery.air.files ***/
 	$.air.files = {
@@ -1099,36 +1333,43 @@
 			}
 			return true;
 		},
-		
-		images: { 
-			resize: function(orig, resized, onResize){
-				var loader = new air.Loader();
-
-				function onComplete(event) { 
-					loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
-					
-					var image = loader.content,
-						scaled = new air.BitmapData(84, 112),
-						matrix = new air.Matrix(); 
-					matrix.scale(84 / image.width, 112 / image.height);
-					scaled.draw(image, matrix);
-					
-					var img = new air.Bitmap(scaled),
-						bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
-					if (!$.air.files.write(resized, bytes)) { onResize(false); }
-					onResize(true, resized);
-				};
-				function onError(event) {
-					loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
-					
-					onResize(false);
-				};
-				loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeHandler);
-				loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, ioErrorHandler); 
-				loader.load(new air.URLRequest(orig.url));
-			}
-		} 
 	}; 
+	
+	/*** jQuery.air.images ***/
+	$.air.images = {
+		resize: function(orig, resized, onResize){
+			var loader = new air.Loader();
+
+			function onComplete(event) { 
+				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
+				
+				var image = loader.content,
+					scaled = new air.BitmapData(84, 112),
+					matrix = new air.Matrix(); 
+				matrix.scale(84 / image.width, 112 / image.height);
+				scaled.draw(image, matrix);
+				
+				var img = new air.Bitmap(scaled),
+					bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
+				if (!$.air.files.write(resized, bytes)) { onResize(false); }
+				onResize(true, resized);
+			};
+			function onError(event) {
+				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
+				
+				onResize(false);
+			};
+			loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeHandler);
+			loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, ioErrorHandler); 
+			loader.load(new air.URLRequest(orig.url));
+			
+//			var request = new $.air.request(orig);
+//			request
+//				.bind("air.complete", onComplete)
+//				.bind("air.exception", onError)
+//				.load();
+		}
+	};
     
     
     /*** jQuery.air.app ***/
@@ -1672,9 +1913,9 @@
 				var transition = this.transitions(this.context, presenter); 
 				transition.play();  
             },
-			restore: function() { window.nativeWindow.restore(); }, 
-			maximize: function() { window.nativeWindow.maximize(); }, 
-			minimize: function() { window.nativeWindow.minimize(); }, 
+			restore: function() { nativeWindow.restore(); }, 
+			maximize: function() { nativeWindow.maximize(); }, 
+			minimize: function() { nativeWindow.minimize(); }, 
 			exit: function() { 
 				this.dispose(); 
 				
