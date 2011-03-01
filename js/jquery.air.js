@@ -1,20 +1,7 @@
 ;jQuery.air || (function($) {
 	
     $.air = {};
-    
-    $.air.hash = {
-        toArray: function(hash){
-            var arr = [];
-            for (var key in hash) {
-                arr.push(hash[key]);
-            }
-            return arr;
-        },
-        getKeyCount: function(hash){
-            return this.toArray(hash).length;
-        }
-    }
-    
+
     /*** jQuery.air.crypto - utlity ***/
     $.air.crypto = (function(){
         var ELS_RGN_ITEM_NAME = "Random Generated Number";
@@ -103,9 +90,13 @@
     /*** jQuery.air.bounds - utlity ***/
     $.air.bounds = {
         get: function(el){ 
-            el = el.selector ? el.get(0) : el;
+			var $el = el.selector ? el : $(el), 
+				offset = $el.offset(), 
+				width = $el.width(), 
+				height = $el.height();
+
+			el = $el.get(0);
 			var htmlLoader = el.ownerDocument.defaultView.htmlLoader;
-            var e = $(el), offset = e.offset(), width = e.width(), height = e.height();
             return {
                 x: offset.left + htmlLoader.x,
                 y: offset.top + htmlLoader.y,
@@ -124,42 +115,43 @@
         }
     };
 	
-    /*** jQuery.air.HTMLLoader - htmlLoader utility ***/ 
-	$.air.loaders = {
-		url: { 
-		
-		},
-		html: {
-			create: function(config){
-				config =  $.extend({}, {  
-					x: 20, y: 20,  
-					paintsDefaultBackground: false, 
-					visible: false,  
-				}, config || {}); 
-		
-	            var loader = new air.HTMLLoader();
-	            loader.x = config.x;
-	            loader.y = config.y;
-	            loader.paintsDefaultBackground = config.paintsDefaultBackground;
-	            loader.visible = config.visible;
-	            
-	            var filterFactory = new $.air.filters.FilterFactory();
-	            loader.filters = [filterFactory.create("shadow").filter]; 
-	            
-	            return loader;
-	        },
-	        fitToContent: function(loader){
-	            loader.width = loader.window.document.width;
-	            loader.height = loader.window.document.height;
-	        },
-	        copyAsBitmap: function(loader){
-				var data = new air.BitmapData(loader.width, loader.height, true, 0);
-				data.draw(loader);
-				return new air.Bitmap(data);
-			}
+    /*** jQuery.air.urlLoader - utility ***/ 
+	$.air.urlLoader = { 
+
+	}; 
+	
+    /*** jQuery.air.htmlLoader - utility ***/ 
+	$.air.htmlLoader = {
+		create: function(config){
+			config =  $.extend({}, {  
+				x: 20, y: 20,  
+				paintsDefaultBackground: false, 
+				visible: false,  
+			}, config || {}); 
+	
+            var loader = new air.HTMLLoader();
+            loader.x = config.x;
+            loader.y = config.y;
+            loader.paintsDefaultBackground = config.paintsDefaultBackground;
+            loader.visible = config.visible;
+            
+            var filterFactory = new $.air.filterFactory();
+            loader.filters = [filterFactory.create("shadow").filter]; 
+            
+            return loader;
+        },
+        fitToContent: function(loader){
+            loader.width = loader.window.document.width;
+            loader.height = loader.window.document.height;
+        },
+        copyAsBitmap: function(loader){
+			var data = new air.BitmapData(loader.width, loader.height, true, 0);
+			data.draw(loader);
+			return new air.Bitmap(data);
 		}
 	};
 	
+    /*** jQuery.air.window - window utility ***/ 
 	$.air.window = {
 		create: function(config) { 
 			config =  $.extend({}, {  
@@ -177,195 +169,135 @@
 			return air.HTMLLoader.createRootWindow(false, nativeOptions, false);
 		}
 	};
-    
 	
-	/*** jQuery.air.request ***/
-	$.air.request = function( options ) { 
-		options = typeof( options ) == "string" ? {url:options} : options;  
-		this.options = {};
+	/*** jQuery.air.files - file utility ***/
+	$.air.files = {
+		temp: function(id) { 
+			var dir = air.File.applicationStorageDirectory.resolvePath("temp/");
+			return id ? dir.resolvePath(id) : dir.resolvePath("$temp$");
+		},
+		move: function(oldFile, newFile) { 
+			try { 
+				oldFile.moveTo(newFile);	
+			} catch(ex) { 
+				air.trace(ex); 
+			}
+		},
+		del: function(file) { 
+			if(!file && !file.exists) { return; }
+			try { 
+				file.deleteFile(true);
+			} catch(ex) { 
+				air.trace(ex);
+			}
+		},
 		
-		this.__eventListeners = new Object();
+		text: function(file) {
+			
+			var fileStream = new air.FileStream(), text = "";
+			try {		
+				fileStream.open(file, air.FileMode.READ);
+				text = fileStream.readUTFBytes(file.size);
+				fileStream.close();
+			}  catch (ex) { 
+				air.trace(ex); 
+				return ""; 
+			}
+			return text;
+		}, 
 		
-		this.request = new air.URLRequest(options.url); 
-		
-		this.xhr = new air.URLLoader( );
-		this.xhr.addEventListener(air.Event.COMPLETE, $.proxy(function ( event ) {
-			this.trigger( 'air.success' ,[event.target.data, event] );
-		}, this)); 
-		this.xhr.addEventListener( air.IOErrorEvent.IO_ERROR, $.proxy(function ( event ) {
-			this.trigger( 'air.exception', [ event ] );
-			this.trigger( events.ioerror, [ event ] );
-		}, this)); 
-		this.xhr.addEventListener( air.SecurityErrorEvent.SECURITY_ERROR, $.proxy(function ( event ) {
-			this.trigger( 'air.exception', [ event ] );
-			this.trigger( events.securityerror, [ event ] );
-		}, this)); 
-		this.xhr.addEventListener( air.ProgressEvent.PROGRESS, $.proxy(function ( event ) {
-			var status = Math.round( (event.bytesTotal/event.bytesLoaded)*100 );
-			this.trigger( 'air.progress', [ status, event.bytesLoaded, event.bytesTotal, event ] );
-		}, this));	
-		
-		this.setOptions( options );
-	};
-	$.air.request.prototype = (function() {
+		read: function(file) { 
+			var filestream = new air.FileStream(), bytes = new air.ByteArray();
+			try {
+				filestream.open(file, air.FileMode.READ);
+				filestream.readBytes(bytes, 0, file.size);
+				filestream.close();
+			} catch (ex) { 
+				air.trace(ex); 
+				return false; 
+			}
+			return bytes;
+		}, 
+		write: function(file, bytes) { 
+			var filestream = new air.FileStream();
+			try {
+				filestream.open(file, air.FileMode.WRITE);
+				filestream.writeBytes(bytes, 0, bytes.length);
+				filestream.close();
+			} catch (ex) {
+				air.trace(ex);
+				return false;
+			}
+			return true;
+		},
+	}; 
+	
+	/*** jQuery.air.images - image utility ***/
+	$.air.images = {
+		resize: function(orig, resized, onResize){
+			var loader = new air.Loader();
+
+			function onComplete(event) { 
+				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
+				
+				var image = loader.content,
+					scaled = new air.BitmapData(84, 112),
+					matrix = new air.Matrix(); 
+				matrix.scale(84 / image.width, 112 / image.height);
+				scaled.draw(image, matrix);
+				
+				var img = new air.Bitmap(scaled),
+					bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
+				if (!$.air.files.write(resized, bytes)) { onResize(false); }
+				onResize(true, resized);
+			};
+			function onError(event) {
+				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
+				
+				onResize(false);
+			};
+			loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeHandler);
+			loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, ioErrorHandler); 
+			loader.load(new air.URLRequest(orig.url));
+		}
+	}; 
+	
+	/*** jQuery.air.clipboard - clipboard utilitiy ***/
+	$.air.clipboard = (function() {
+		var clipboard = air.Clipboard.generalClipboard;
 		
 		return { 
-			url: function() {},
-			setOptions: function(options) {
-				options = options || {};
-				options = typeof( options ) == "string" ? {data: options} : options;
-				this.options = $.extend({}, {
-					cookies: true,
-					cache: true,
-					followRedirects: true,
-					method: 'GET',
-					userAgent: 'jQuery.AIR (http://code.google.com/p/jquery-air/)',
-					contentType: 'application/x-www-form-urlencoded',
-					responseType: air.URLLoaderDataFormat.TEXT,
-					responseTypeEncoding: "application/xml",
-					xml: null,
-					auth: {
-						host: null,
-						name: null,
-						password: null
-					},
-					headers: {
-						'X-Requested-With': null,
-						'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-						'Accept-Language': 'de-de,de;q=0.8,en-us;q=0.5,en;q=0.3',
-						'Accept-Encoding': 'gzip,deflate',
-						'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-						'Keep-Alive': '300',
-						'Connection': 'keep-alive'
-					},
-					triggerEventsGlobal: true 
-				}, options);
-				var data = this.options.data, url = this.options.url, method = this.options.method;
-				
-				this.request = new air.URLRequest (url);
-				
-				this.request.cacheResponse = this.options.cache;
-				this.request.useCache = this.options.cache;
-				this.request.userAgent = this.options.userAgent;
-				this.request.followRedirects = this.options.followRedirects;
-				this.request.manageCookies = this.options.cookies;
-				this.request.contentType = this.options.contentType;
-				
-				var variables = new air.URLVariables ( );
-				if( data ) {
-					if( A.type( data ) == "string" ) {
-						var d = {};
-						var k = data.split( '&' );
-						k.each( function ( kk ) {
-							var t = kk.split( '=' );
-							d[ t[ 0 ] ] = t[ 1 ];
-						} );
-						data = d;
-					}
-					for( var key in data ) {
-						if( data[key] )
-						variables[ key ] = data[ key ];
-					}
-					this.request.data = variables;
-				}
-				
-				if( this.options.raw ) {
-					this.request.data = this.options.raw;
-					//this.request.contentType = 'application/xml';
-				}
-				
-				if( this.options.headers ) {
-					for( var key in this.options.headers ) {
-						if( this.options.headers[key] )
-						this.request.requestHeaders.push( new air.URLRequestHeader ( key, this.options.headers[ key ] ) );
-					}
-				}
-		
-				if( this.options.auth.name && this.options.auth.password ) {
-					air.URLRequestDefaults.setLoginCredentialsForHost ( this.options.auth.host, this.options.auth.name, this.options.auth.password  );
-					this.request.authenticate = true;
-				}
-				
-				this.request.method = method.toUpperCase();
-				
-				this.xhr.dataFormat = this.options.responseType;
-				
-				if(this.options.triggerEventsGlobal) {
-					this.bind( 'air.success', function(){$(document).trigger('air.request.success',arguments)} );
-					this.bind( 'air.progress', function(){$(document).trigger('air.request.progress',arguments)} );
-					this.bind( 'air.exception', function(){$(document).trigger('air.request.exception',arguments)} );
-				} 
-			},
-			load: function() {
-				try {
-					this.xhr.load( this.request );
-				} catch ( e ) {
-					this.trigger('exception', [ e, this.xhr ] );
-				}
-				this.trigger('request');
-			},
-			header: function() { },
-			bind: function(type, fn) {
-				type = events[ type ] ? events[ type ] : type;
-				if( type && A.type( fn ) == "function" ) {
-					if( !this.__eventListeners[ type ] ) this.__eventListeners[ type ] = [];
-					this.__eventListeners[ type ].push( fn );
-					this.xhr.addEventListener( type, fn );
-				} else if( type &&  A.type( fn ) == 'array' ) {
-					var that = this;
-					$.each( fn, function( i, f ) { that.bind( type, f ) } );
-				}
-				return this;
-			},
-			unbind: function(type, fn) {
-				var that = this;
-				type = events[ type ] ? events[ type ] : type;
-				if( type && A.type( fn ) == "function" ) {
-					this.xhr.removeEventListener( type, fn );
-					if( !this.__eventListeners[ type ] ) this.__eventListeners[ type ] = [];
-					$.each( this.__eventListeners[ type ], function( i, f ) {
-						if( f == fn )
-							delete that.__eventListeners[ type ][ i ];
-					} )
-				} else if( type &&  A.type( fn ) == 'array' ) {
-					var that = this;
-					$.each( fn, function( i, f ) { that.unbind( type, f ) } );
-				} else if( type && fn == undefined ) {
-					$.each( this.__eventListeners[ type ], function( i, f ) {
-						that.xhr.removeEventListener( type, f );
-					} );
-					this.__eventListeners[ type ] = [];
-				}
-				return this;
-			},
-			trigger: function(type, args) {
-				var that = this;
-				args = args || [];
-				if( type && this.__eventListeners[ type ] ) {
-					var w = true;
-					$.each( this.__eventListeners[ type ], function ( i, f ) {
-						if( w == true  )
-							if( f.apply( that, args  ) === false ) w = false;
-					} );
-				}
-				return this;
-			}
+	        hasData: function(format) {
+	            return clipboard.hasFormat(format);
+	        }, 
+	        setData: function(format, data) {
+	            clipboard.setData(format, data);
+	        }, 
+	        setDataHandler: function(format, fn) {
+	            clipboard.setDataHandler(format, fn);
+	        }, 
+	        getData: function(format, transferMode) {
+	            clipboard.getData(format, transferMode);
+	        }, 
+	        clear: function() {
+	            clipboard.clear();
+	        }, 
+	        clearData: function(format) {
+	            clipboard.clearData(format);
+	        }
 		};
 	})();
-	
-    /*** jQuery.air.filters ***/
+
 	/*** 
+	 * jQuery.air filters 
 	 * 
 	 * jQuery.air.filter
 	 * jQuery.air.dropShadowFilter
 	 * jQuery.air.filterFactory
 	 * 
-	 * 
-	 ***/
-    $.air.filters = {};
-    
+	 ***/ 
     /* Abstract filter */
-    $.air.filters.Filter = function(config){
+    $.air.filter = function(config){
         this.config = $.extend({}, {
             x: 0,
             y: 0,
@@ -375,35 +307,42 @@
         
         this.filter = null; 
     };
-    $.air.filters.Filter.prototype = {};
+    $.air.filter.prototype = {};
     
     /* Custom filter */
-    $.air.filters.DropShadow = function(config){
-        $.air.filters.Filter.call(this, config);
+    $.air.dropShadowFilter = function(config){
+        $.air.filter.call(this, config);
 
         this.filter = new runtime.flash.filters.DropShadowFilter(this.config.x, this.config.y);
         this.filter.blurX = this.config.blurX;
         this.filter.blurY = this.config.blurY;
     };
-    $.air.filters.DropShadow.prototype = new $.air.filters.Filter();
-    $.air.filters.DropShadow.prototype.constructor = $.air.filters.DropShadow; 
+    $.air.dropShadowFilter.prototype = new $.air.filter();
+    $.air.dropShadowFilter.prototype.constructor = $.air.dropShadowFilter; 
     
     /* Filter factory */
-    $.air.filters.FilterFactory = function(){};
-    $.air.filters.FilterFactory.prototype = {
+    $.air.filterFactory = function(){};
+    $.air.filterFactory.prototype = {
         create: function(type, config){
             type = type.toLowerCase();
             switch (type) {
                 case "dropshadow":
                 case "drop-shadow":
                 case "shadow":
-                    return new $.air.filters.DropShadow(config);
+                    return new $.air.dropShadowFilter(config);
             }
         }
     };
     
-    /*** jQuery.air.anim ***/
-    $.air.anim = {
+    /***   
+     * jQuery.air animation 
+     * 
+     * jQuery.air.animation
+     * jQuery.air.tween
+     * jQuery.air.rotation
+     *
+     ***/
+    $.air.animation = {
         linear: function(t, b, c, d){
             return (t / d) * c + b;
         },
@@ -420,16 +359,16 @@
         }
     };
     
-    /* Tween */
-    $.air.anim.Tween = function(config){
-		this.config = $.extend({}, { effect: $.air.anim.ease }, config || {}); 
+    /* tween */
+    $.air.tween = function(config){
+		this.config = $.extend({}, { effect: $.air.animation.ease }, config || {}); 
 		
         this.reversed = false;
         this.running = false;
         this.interval = null; 
     };
-    $.air.anim.Tween.fps = 30;
-    $.air.anim.Tween.prototype = (function(){
+    $.air.tween.fps = 30;
+    $.air.tween.prototype = (function(){
     
         return {   
             start: function(reversed){
@@ -440,7 +379,7 @@
                 
                 var begin = this.config.begin, end = this.config.end;
                 var transitionEffect = this.config.effect, currentEffect = 0;
-                var duration = this.config.duration, fps = $.air.anim.Tween.fps, startTime = new Date().getTime();
+                var duration = this.config.duration, fps = $.air.tween.fps, startTime = new Date().getTime();
                 
 				$(this).trigger("started");
 
@@ -475,14 +414,13 @@
         };
     })();
     
-    /*** jQuery.air.transform ***/
-    $.air.transform = {};
-    $.air.transform.Rotation = function(target){
+	/* rotation */
+    $.air.rotation = function(target){
         this.target = target;
 		
         this.setCenter();
     };
-    $.air.transform.Rotation.prototype = (function(){
+    $.air.rotation.prototype = (function(){
     
         return {
             setCenter: function(){
@@ -520,11 +458,20 @@
         };
     })();
     
-    /*** jQuery.air.fx ***/
-    $.air.fx = {};
-    
-    /* Abstract 3D effect */
-    $.air.fx.Effect = function(config){
+    /*** 
+     * jQuery.air html loader fx - 3d & Blender 
+     * 
+     * jQuery.air.effect
+     * jQuery.air.flipEffect
+     * jQuery.air.singleFlipEffect
+     * jQuery.air.zoomEffect
+     * jQuery.air.effectFactory
+     * jQuery.air.blenderEffect
+     * jQuery.air.blenderEffectFactory
+     * 
+     ***/  
+    /* effect */
+    $.air.effect = function(config){
         this.config = $.extend({}, {
             htmlLoader: null,
 			secondHtmlLoader: null, 
@@ -534,7 +481,7 @@
 
         this.tween = null;  
     };
-    $.air.fx.Effect.prototype = { 
+    $.air.effect.prototype = { 
         start: function(reversed) {
             if (this.tween) {
                 this.tween.start(reversed);
@@ -546,15 +493,15 @@
             }
         }
     };
-    
-    /* Custom 3D fx */
-    $.air.fx.Flip = function(config){
-        $.air.fx.Effect.call(this, config);
+
+	/* flipEffect */
+    $.air.flipEffect = function(config){
+        $.air.effect.call(this, config);
 
 		this.firstFace = this.config.htmlLoader;
 		this.secondFace = this.config.secondHtmlLoader; 
-		this.firstFaceRotation = new $.air.transform.Rotation(this.firstFace); 
-		this.secondFaceRotation = new $.air.transform.Rotation(this.secondFace); 
+		this.firstFaceRotation = new $.air.rotation(this.firstFace); 
+		this.secondFaceRotation = new $.air.rotation(this.secondFace); 
 		this.axis = this.config.axis;
 		this.duration = this.config.duration; 
 		this.startValue = 0; 
@@ -562,11 +509,11 @@
 		this.switchValue = (this.startValue + this.endValue) / 2; 
 		this.flipped = false;
         
-        this.tween = new $.air.anim.Tween({
+        this.tween = new $.air.tween({
 			begin: this.startValue,
 			end: this.endValue,
 			duration: this.duration,
-			effect: $.air.anim.linear
+			effect: $.air.animation.linear
 		}); 
 		
 		$(this.tween)
@@ -604,15 +551,16 @@
 					.unbind();
 			}, this)); 
     };
-    $.air.fx.Flip.prototype = new $.air.fx.Effect();
-    $.air.fx.Flip.prototype.constructor = $.air.fx.Flip; 
+    $.air.flipEffect.prototype = new $.air.effect();
+    $.air.flipEffect.prototype.constructor = $.air.flipEffect; 
     
-    $.air.fx.SingleFlip = function(config){
-        $.air.fx.Effect.call(this, config);
+	/* singleFlipEffect */
+    $.air.singleFlipEffect = function(config){
+        $.air.effect.call(this, config);
 
 		this.firstFace = this.config.htmlLoader, 
 		this.firstFaceParent = null; 
-		this.firstFaceRotation = new $.air.transform.Rotation(this.firstFace);  
+		this.firstFaceRotation = new $.air.rotation(this.firstFace);  
         this.firstFaceRotation.rotationCenter.z = this.firstFace.width / 2; 
 		this.secondFace = null;
 		this.secondFaceRotation = null; 
@@ -624,11 +572,11 @@
 		this.oldFilters;
 		this.filteredSprite; 
         
-        this.tween = new $.air.anim.Tween({
+        this.tween = new $.air.tween({
 			begin: this.startValue,
 			end: this.endValue,
 			duration: this.duration,
-			effect: $.air.anim.linear
+			effect: $.air.animation.linear
 		});
 		$(this.tween)
 			.bind("started", $.proxy(function() {
@@ -647,9 +595,9 @@
 	            this.firstFaceParent.removeChild(this.firstFace);
 	            this.filteredSprite.addChild(this.firstFace);
 	            
-	            this.secondFace = $.air.loaders.html.copyAsBitmap(this.firstFace); 
+	            this.secondFace = $.air.htmlLoader.copyAsBitmap(this.firstFace); 
 	            this.filteredSprite.addChild(this.secondFace);
-	            this.secondFaceRotation = new $.air.transform.Rotation(this.secondFace); 
+	            this.secondFaceRotation = new $.air.rotation(this.secondFace); 
 	            this.secondFaceRotation.position = this.firstFaceRotation.position;
 	            this.secondFaceRotation.rotationCenter.z = this.secondFace.width / 2;
 	            
@@ -692,11 +640,12 @@
 					.unbind();
 			}, this));  
     };
-    $.air.fx.SingleFlip.prototype = new $.air.fx.Effect();
-    $.air.fx.SingleFlip.prototype.constructor = $.air.fx.SingleFlip; 
+    $.air.singleFlipEffect.prototype = new $.air.effect();
+    $.air.singleFlipEffect.prototype.constructor = $.air.singleFlipEffect; 
     
-    $.air.fx.Zoom = function(config){
-        $.air.fx.Effect.call(this, config); 
+	/* zoomEffect */
+    $.air.zoomEffect = function(config){
+        $.air.effect.call(this, config); 
 		
         this.firstFace = this.config.htmlLoader, 
 		this.duration = this.config.duration; 
@@ -707,11 +656,11 @@
             height: this.firstFace.height
         };
 			
-        this.tween = new $.air.anim.Tween({
+        this.tween = new $.air.tween({
 			begin: 0,
 			end: 1,
 			duration: this.duration,
-			effect: $.air.anim.linear
+			effect: $.air.animation.linear
 		}); 
 		$(this.tween)
 			.bind("started", $.proxy(function() {
@@ -755,33 +704,31 @@
 					.unbind();
 			}, this)); 
     };
-    $.air.fx.Zoom.prototype = new $.air.fx.Effect();
-    $.air.fx.Zoom.prototype.constructor = $.air.fx.Zoom; 
+    $.air.zoomEffect.prototype = new $.air.effect();
+    $.air.zoomEffect.prototype.constructor = $.air.zoomEffect; 
     
-    /* 3D fx factory */
-    $.air.fx.EffectFactory = function() { };
-    $.air.fx.EffectFactory.prototype = (function() { 
+    /* effectFactory */
+    $.air.effectFactory = function() { };
+    $.air.effectFactory.prototype = (function() { 
         return {
             create: function(type, config){
                 if (!type) { throw new Error("fx type required"); }
                 type = type.toLowerCase();
                 switch (type) {
                     case "flip":
-                        return new $.air.fx.Flip(config);
+                        return new $.air.flipEffect(config);
                     case "singleflip":
                     case "single-flip":
-                        return new $.air.fx.SingleFlip(config);
+                        return new $.air.singleFlipEffect(config);
                     case "zoom":
-                        return new $.air.fx.Zoom(config);
+                        return new $.air.zoomEffect(config);
                 }
             }
         };
     })();
-	
-    $.air.fx.blender = {};
     
-    /* Abstract blender effect */
-    $.air.fx.blender.Effect = function(config){ 
+    /* blenderEffect */
+    $.air.blenderEffect = function(config){ 
 		
         this.config = $.extend({}, {
             htmlLoader: null,
@@ -790,7 +737,7 @@
             shaderConfig: {},
             axis: null,
             duration: 200,
-            transition: $.air.anim.linear
+            transition: $.air.animation.linear
         }, config || {}); 
 		
 		this.isLoaded = false;
@@ -803,7 +750,7 @@
         this.hideOnFinish = false;
         this.disableInteraction = false; 
         
-        this.tween = new $.air.anim.Tween({
+        this.tween = new $.air.tween({
 			begin: 0,
 			end: 1,
 			duration: this.config.duration,
@@ -812,7 +759,7 @@
 		
 		this.init();
     };
-    $.air.fx.blender.Effect.prototype = (function(){ 
+    $.air.blenderEffect.prototype = (function(){ 
         //Private methods
 		function resetFilters(target, filters) {
             var oldFilters = target.filters;
@@ -929,34 +876,9 @@
         };
     })();
     
-    /* Custom blender fx */
-    $.air.fx.blender.Dissolve = function(config){ 
-        $.air.fx.blender.Effect.call(this, config);
-    };
-    $.air.fx.blender.Dissolve.prototype = new $.air.fx.blender.Effect();
-    $.air.fx.blender.Dissolve.prototype.constructor = $.air.fx.blender.Dissolve;
-    
-    $.air.fx.blender.Page = function(config){ 
-        $.air.fx.blender.Effect.call(this, config);
-    };
-    $.air.fx.blender.Page.prototype = new $.air.fx.blender.Effect();
-    $.air.fx.blender.Page.prototype.constructor = $.air.fx.blender.Page;
-    
-    $.air.fx.blender.Waves = function(config){ 
-        $.air.fx.blender.Effect.call(this, config);
-    };
-    $.air.fx.blender.Waves.prototype = new $.air.fx.blender.Effect();
-    $.air.fx.blender.Waves.prototype.constructor = $.air.fx.blender.Waves;
-    
-    $.air.fx.blender.Shake = function(config){ 
-        $.air.fx.blender.Effect.call(this, config);
-    };
-    $.air.fx.blender.Shake.prototype = new $.air.fx.blender.Effect();
-    $.air.fx.blender.Shake.prototype.constructor = $.air.fx.blender.Shake;
-    
-    /* Blender fx factory */
-    $.air.fx.blender.EffectFactory = function(){};
-    $.air.fx.blender.EffectFactory.prototype = (function(){
+    /* blenderEffectFactory */
+    $.air.blenderEffectFactory = function(){};
+    $.air.blenderEffectFactory.prototype = (function(){
     
         return {
             create: function(type, config){
@@ -967,25 +889,25 @@
                 
                 switch (type) {
                     case "dissolve":
-                        return new $.air.fx.blender.Dissolve($.extend({}, {
+                        return new $.air.blenderEffect($.extend({}, {
 				            url: "app:/lib/disolve.pbj",
 				            duration: 500,
-				            transition: $.air.anim.linear
+				            transition: $.air.animation.linear
 				        }, config || {}));
                     case "page":
-                        return new $.air.fx.blender.Page($.extend({}, {
+                        return new $.air.blenderEffect($.extend({}, {
 				            url: "app:/lib/page.pbj",
 				            duration: 1200,
-				            transition: $.air.anim.ease
+				            transition: $.air.animation.ease
 				        }, config || {}));
                     case "waves":
-                        return new $.air.fx.blender.Waves($.extend({}, {
+                        return new $.air.blenderEffect($.extend({}, {
 				            url: "app:/lib/waves.pbj",
 				            duration: 1200,
-				            transition: $.air.anim.linear
+				            transition: $.air.animation.linear
 				        }, config || {}));
                     case "shake": 
-                        return new $.air.fx.blender.Shake($.extend({}, {
+                        return new $.air.blenderEffect($.extend({}, {
             				url: "app:/lib/shake.pbj",
             				duration: 1000
 						}, config || {}));
@@ -996,17 +918,19 @@
         };
     })();
 	
+	/*** 
+	 * jQuery.air sqlLite support
+	 * 
+	 * jQuery.air.sqlQuery
+	 * jQuery.air.sqlTable
+	 * jQuery.air.sqlLite
+	 * 
+	 ***/
 	
-    /*** jQuery.air.db ***/
-    /* Query */
-    /* Table */
-    /* Database */
-    $.air.db = {};
-    
-    $.air.db.Query = function(connection){
+	$.air.sqlQuery = function(connection){
         this.connection = connection; 
     };
-    $.air.db.Query.prototype = (function(){
+    $.air.sqlQuery.prototype = (function(){
         //Private methods
         function setParm(key, value){ 
 			if (!$.isFunction(value)) {
@@ -1044,16 +968,16 @@
         };
     })();
     
-    $.air.db.Table = function(name, connection){
+    $.air.sqlTable = function(name, connection){
         this.name = name; 
         this.connection = connection;
 
         this.init();
     };
-    $.air.db.Table.prototype = (function(){
+    $.air.sqlTable.prototype = (function(){
         //Private methods
         function executeQuery(sql, parms, successCallback, failureCallback){ 
-            var query = new $.air.db.Query(this.connection);
+            var query = new $.air.sqlQuery(this.connection);
 
             if (successCallback) { 
 				function onSuccess(e, result) { 
@@ -1096,14 +1020,14 @@
                     columnDefinitions.push(columnDefinition); 
                 }
 
-	            var query = new $.air.db.Query(this.connection),
+	            var query = new $.air.sqlQuery(this.connection),
 					sql = "CREATE TABLE IF NOT EXISTS " + this.name + " ( " + columnDefinitions.join() + ")",  
 					parms = {}; 
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
 			},
             get: function(parms, onSuccess, onFailure){ 
-				var query = new $.air.db.Query(this.connection),  sql = "SELECT * FROM " + this.name;
+				var query = new $.air.sqlQuery(this.connection),  sql = "SELECT * FROM " + this.name;
 					
                 if (!$.isEmptyObject(parms)) {
                     var clauses = [];
@@ -1122,7 +1046,7 @@
                     return;
                 } 
 				
-	            var query = new $.air.db.Query(this.connection), sql = "";
+	            var query = new $.air.sqlQuery(this.connection), sql = "";
                 if (!parms.id) {
                     sql = "INSERT INTO " + this.name + " ";
 
@@ -1154,7 +1078,7 @@
             del: function(parms, onSuccess, onFailure){
                 if ($.isEmptyObject(parms) || !parms.id) { return; }
                 
-                var query = new $.air.db.Query(this.connection), 
+                var query = new $.air.sqlQuery(this.connection), 
 					sql = "DELETE FROM " + this.name + " WHERE id = :id";
 				
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
@@ -1162,7 +1086,7 @@
         };
     })();
     
-    $.air.db.Database = function(key, config){
+    $.air.sqlLite = function(key, config){
         this.key = key;
         this.config = $.extend({}, {
             tables: {} 
@@ -1178,7 +1102,7 @@
         
         this.init();
     };
-    $.air.db.Database.prototype = (function(){
+    $.air.sqlLite.prototype = (function(){
         //Private methods 
         
         //Private events
@@ -1190,7 +1114,7 @@
 				
         function onOpen(event){  
 			for(var tableKey in this.config.tables) { 
-				var table = new $.air.db.Table(tableKey, this.connection);  
+				var table = new $.air.sqlTable(tableKey, this.connection);  
 				this.tables(tableKey, table);
 				this.tableCount++;
 				
@@ -1246,146 +1170,33 @@
             } 
         };
     })();
-	
-	/*** jQuery.air.clipboard ***/
-	$.air.clipboard = (function() {
-		var clipboard = air.Clipboard.generalClipboard;
-		
-		return { 
-	        hasData: function(format) {
-	            return clipboard.hasFormat(format);
-	        }, 
-	        setData: function(format, data) {
-	            clipboard.setData(format, data);
-	        }, 
-	        setDataHandler: function(format, fn) {
-	            clipboard.setDataHandler(format, fn);
-	        }, 
-	        getData: function(format, transferMode) {
-	            clipboard.getData(format, transferMode);
-	        }, 
-	        clear: function() {
-	            clipboard.clear();
-	        }, 
-	        clearData: function(format) {
-	            clipboard.clearData(format);
-	        }
-		};
-	})();
-
-	/*** jQuery.air.files ***/
-	$.air.files = {
-		temp: function(id) { 
-			var dir = air.File.applicationStorageDirectory.resolvePath("temp/");
-			return id ? dir.resolvePath(id) : dir.resolvePath("$temp$");
-		},
-		move: function(oldFile, newFile) { 
-			try { 
-				oldFile.moveTo(newFile);	
-			} catch(ex) { 
-				air.trace(ex); 
-			}
-		},
-		del: function(file) { 
-			if(!file && !file.exists) { return; }
-			try { 
-				file.deleteFile(true);
-			} catch(ex) { 
-				air.trace(ex);
-			}
-		},
-		
-		text: function(file) {
-			
-			var fileStream = new air.FileStream(), text = "";
-			try {		
-				fileStream.open(file, air.FileMode.READ);
-				text = fileStream.readUTFBytes(file.size);
-				fileStream.close();
-			}  catch (ex) { 
-				air.trace(ex); 
-				return ""; 
-			}
-			return text;
-		}, 
-		
-		read: function(file) { 
-			var filestream = new air.FileStream(), bytes = new air.ByteArray();
-			try {
-				filestream.open(file, air.FileMode.READ);
-				filestream.readBytes(bytes, 0, file.size);
-				filestream.close();
-			} catch (ex) { 
-				air.trace(ex); 
-				return false; 
-			}
-			return bytes;
-		}, 
-		write: function(file, bytes) { 
-			var filestream = new air.FileStream();
-			try {
-				filestream.open(file, air.FileMode.WRITE);
-				filestream.writeBytes(bytes, 0, bytes.length);
-				filestream.close();
-			} catch (ex) {
-				air.trace(ex);
-				return false;
-			}
-			return true;
-		},
-	}; 
-	
-	/*** jQuery.air.images ***/
-	$.air.images = {
-		resize: function(orig, resized, onResize){
-			var loader = new air.Loader();
-
-			function onComplete(event) { 
-				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
-				
-				var image = loader.content,
-					scaled = new air.BitmapData(84, 112),
-					matrix = new air.Matrix(); 
-				matrix.scale(84 / image.width, 112 / image.height);
-				scaled.draw(image, matrix);
-				
-				var img = new air.Bitmap(scaled),
-					bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
-				if (!$.air.files.write(resized, bytes)) { onResize(false); }
-				onResize(true, resized);
-			};
-			function onError(event) {
-				loader.contentLoaderInfo.removeEventListener(air.Event.COMPLETE, onComplete);
-				
-				onResize(false);
-			};
-			loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeHandler);
-			loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, ioErrorHandler); 
-			loader.load(new air.URLRequest(orig.url));
-			
-//			var request = new $.air.request(orig);
-//			request
-//				.bind("air.complete", onComplete)
-//				.bind("air.exception", onError)
-//				.load();
-		}
-	};
+	 
     
-    
-    /*** jQuery.air.app ***/
-    $.air.app = {};
-	
-	/* FX */ 
-    $.air.app.EffectCache = function(){
+    /*** 
+     * jQuery.air.mvp  
+     * 
+     * jQuery.air.fxCache
+     * $.air.model
+     * $.air.view
+     * $.air.presenter
+     * $.air.shell
+     * $.air.appDefinition
+     * $.air.application
+     * $.air.mvp
+     * 
+     ***/ 
+	 
+	/* fxCache */ 
+    $.air.fxCache = function(){
         this.fx = {};
     };
-    $.air.app.EffectCache.prototype = (function(){
+    $.air.fxCache.prototype = (function(){
     
         return { 
             get3DEffect: function(key, type, config){
                	key = key + "-3D-" + type; 
                 if (!this.fx[key]) {
-                    var factory = new $.air.fx.EffectFactory();
+                    var factory = new $.air.effectFactory();
                     this.fx[key] = factory.create(type, config);
 				}
                 return this.fx[key];
@@ -1393,7 +1204,7 @@
             getBlenderEffect: function(key, type, config){
 				key = key + "-blender-" + type;
                	if (!this.fx[key]) {
-                    var factory = new $.air.fx.blender.EffectFactory();
+                    var factory = new $.air.blenderEffectFactory();
                     this.fx[key] = factory.create(type, config);
 				}
                 return this.fx[key];
@@ -1401,9 +1212,9 @@
         };
     })();
     
-    /* Model */
-    $.air.app.Model = function(){ };
-    $.air.app.Model.prototype = (function(){
+    /* model */
+    $.air.model = function(){ };
+    $.air.model.prototype = (function(){
         //Private methods 
         
         //Private events
@@ -1448,21 +1259,21 @@
         };
     })();
     
-    /* View */
-    $.air.app.View = function(loader){  
+    /* view */
+    $.air.view = function(loader){  
         this.htmlLoader = loader; 
         
         this.elements = {}; 
 		
         this.init();
     };
-    $.air.app.View.prototype = (function(){
+    $.air.view.prototype = (function(){
         //Private methods 
         
         //Private events
         
         return {  
-            toString: function(){ return "$.air.app.View"; },
+            toString: function(){ return "$.air.view"; },
             init: function(){},
             
 			$: function(selector) {
@@ -1472,8 +1283,8 @@
         };
     })();
 	
-	/* Presenter */
-	$.air.app.Presenter = function(fxCache, eventBus, view, dependencies) { 
+	/* presenter */
+	$.air.presenter = function(fxCache, eventBus, view, dependencies) { 
 		this.fxCache = fxCache;
 		this.eventBus = eventBus; 
 		this.view = view;
@@ -1488,7 +1299,7 @@
 
 		this.init();
 	};
-	$.air.app.Presenter.prototype = (function() {
+	$.air.presenter.prototype = (function() {
         
         //3D fx 
         function getFlipXEffect(to, config){
@@ -1715,14 +1526,14 @@
 		};
 	})();
 	
-	/* Transition */
-	$.air.app.Transition = function(from, to) {
+	/* transition */
+	$.air.transition = function(from, to) {
 		this.from = from;
 		this.to = to;
 		
 		air.trace(this.from.key + "->" + this.to.key);
 	};
-	$.air.app.Transition.prototype = (function() {
+	$.air.transition.prototype = (function() {
 		
 		return {
 			play: function() {
@@ -1732,18 +1543,18 @@
 		};
 	})(); 
 	
-	/* Service */
-	$.air.app.Service = function(dependencies) { 
+	/* service */
+	$.air.service = function(dependencies) { 
 		if(dependencies) { 
 			for(var key in dependencies) { 
 				this[key] = dependencies[key]; 
 			}
 		}
 	};
-	$.air.app.Service.prototype = (function() { return {}; })();
+	$.air.service.prototype = (function() { return {}; })();
 	
-	/* Shell */
-	$.air.app.Shell = function(appDef) {  
+	/* shell */
+	$.air.shell = function(appDef) {  
 		this.appDef = appDef;
 
 		this.env = air.NativeApplication.nativeApplication;
@@ -1756,7 +1567,7 @@
 		this.history = []; 
 		this.staged = {};
 
-		this.effectCache = new $.air.app.EffectCache();
+		this.fxCache = new $.air.fxCache();
 		
 		this.eventBus = {};
 		this.events = $.extend({}, {
@@ -1770,7 +1581,7 @@
 		
 		this.init();
 	};
-	$.air.app.Shell.prototype = (function() { 
+	$.air.shell.prototype = (function() { 
         //Private methods     
         
         //Private events
@@ -1784,7 +1595,7 @@
         
         function onHtmlLoaderLoad(e){ 
 			var loader = e.target;
-			$.air.loaders.html.fitToContent(loader);  
+			$.air.htmlLoader.fitToContent(loader);  
 			this.stage.addChild(loader);
 
             this.loadCount++;
@@ -1828,7 +1639,7 @@
                 this.stage.addEventListener("keyDown", $.proxy(onKeyDown, this), true); 
 				 
 				$.each(this.appDef.htmlLoaders(), $.proxy(function(key, htmlLoaderConfig) { 
-					var loader = $.air.loaders.html.create(htmlLoaderConfig);
+					var loader = $.air.htmlLoader.create(htmlLoaderConfig);
 					loader.addEventListener(air.Event.COMPLETE, $.proxy(onHtmlLoaderLoad, this)); 
 					
 					this.htmlLoaders[key] = loader;
@@ -1856,11 +1667,11 @@
 			},
 
             models: function(key) {
-				var Model = this.appDef.models(key) || $.air.app.Model;
+				var Model = this.appDef.models(key) || $.air.model;
 				return new Model();
 			},
 			views: function(key) { 
-				var View = this.appDef.views(key) || $.air.app.View;  
+				var View = this.appDef.views(key) || $.air.view;  
 				
 				var view = new View(this.htmlLoaders[key]);
 				view.key = key;
@@ -1878,19 +1689,19 @@
 					return current; 
 				}
 			
-				var Presenter = this.appDef.presenters(key) || $.air.app.Presenter;
+				var Presenter = this.appDef.presenters(key) || $.air.presenter;
 				 
-				var presenter = new Presenter(this.effectCache, this.eventBus, this.views(key), dependencies);
+				var presenter = new Presenter(this.fxCache, this.eventBus, this.views(key), dependencies);
 				presenter.key = key; 
 				
 				return presenter;
 			}, 
 			transitions: function(from, to) {
-				var Transition = this.appDef.transitions(from.key, to.key) || $.air.app.Transition; 
+				var Transition = this.appDef.transitions(from.key, to.key) || $.air.transition; 
 				return new Transition(from, to);
 			},
 			services: function(key, dependencies) { 
-				var Service = this.appDef.services(key) || $.air.app.Service;
+				var Service = this.appDef.services(key) || $.air.service;
 				return new Service(dependencies);
 			},
             
@@ -1924,7 +1735,8 @@
 		};
 	})(); 
 	
-	$.air.app.Definition = function(partial) { 
+	/* appDefinition */
+	$.air.appDefinition = function(partial) { 
 		this.partial = $.extend({}, { 
 			models: {}, 
 			views: {}, 
@@ -1938,7 +1750,7 @@
 	
 		this.init();
 	};
-	$.air.app.Definition.prototype = (function() {
+	$.air.appDefinition.prototype = (function() {
 		//Private methods 
 		function createClass(baseClass, proto) {  
 			function O(){
@@ -1989,7 +1801,7 @@
 							}
 						}
 
-						this.full[key][c] = createClass(baseClass, viewProto); //this.full["transitions"]["list"]["detail"] = $.air.app.Transition; (customized);
+						this.full[key][c] = createClass(baseClass, viewProto); //this.full["transitions"]["list"]["detail"] = $.air.transition; (customized);
 						this.full["htmlLoaders"][c] = htmlLoaderConfig;  //this.full["htmlLoaders"]["list"] = { path: "".... 
 						
 						break; 
@@ -2003,20 +1815,20 @@
 						for(var prop in transitionProto) {
 							var val = transitionProto[prop];
 					
-							this.full[key][c][prop] = createClass(baseClass, { play: val }); //this.full["transitions"]["list"]["detail"] = $.air.app.Transition; (customized);
+							this.full[key][c][prop] = createClass(baseClass, { play: val }); //this.full["transitions"]["list"]["detail"] = $.air.transition; (customized);
 						}
 
 						break;
 						
 						default:
 						var proto = this.partial[key][c];
-						this.full[key][c] = createClass(baseClass, proto); //this.full["presenters"]["list"] = $.air.app.Presenter; (customized)
+						this.full[key][c] = createClass(baseClass, proto); //this.full["presenters"]["list"] = $.air.presenter; (customized)
 						break;
 					} 
 				}
 			}, this));
 			
-			this.full["shell"] = createClass($.air.app.Shell, this.partial["shell"]);
+			this.full["shell"] = createClass($.air.shell, this.partial["shell"]);
 		};
 		
 		function getClass(type, key) {} 
@@ -2029,11 +1841,11 @@
 		return { 
 			init: function() { 
 				defineClasses.call(this, {
-					"models": $.air.app.Model,
-					"views": $.air.app.View,
-					"presenters": $.air.app.Presenter, 
-					"transitions": $.air.app.Transition,
-					"services": $.air.app.Service 
+					"models": $.air.model,
+					"views": $.air.view,
+					"presenters": $.air.presenter, 
+					"transitions": $.air.transition,
+					"services": $.air.service 
 				});
 			}, 
 			models: function(key) { return lookup.call(this, "models", key); },
@@ -2047,22 +1859,26 @@
 	})();
 	
     
-    /* Application */
-    $.air.app.Application = function(partial){ 
-		this.def = new $.air.app.Definition(partial);
+    /* application */
+    $.air.application = function(partial){ 
+		this.def = new $.air.appDefinition(partial);
 		
         this.init();
     };
-    $.air.app.Application.prototype = (function(){
+    $.air.application.prototype = (function(){
 		//Private methods    
 		
 		//Private events  
 		
         return { 
             //Initialization - events added/disposed
-            toString: function(){ return "$.air.app.Application"; },
+            toString: function(){ return "$.air.application"; },
             init: function(){  
                 //custom fx loading?    
+				
+				//todo: application should manage all references to definition
+				//shell should exist for global event handling, state, etc
+				//e.g. this.models = this.def.models(); 
 
 				var Shell = this.def.shell();    
 				this.shell = new Shell(this.def);  
@@ -2070,5 +1886,6 @@
         };
     })();
 
-    $.air.mvp = function(definition) { return new $.air.app.Application(definition); };
+	/* mvp */
+    $.air.mvp = function(definition) { return new $.air.application(definition); };
 })(jQuery); 
