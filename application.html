@@ -22,15 +22,15 @@
 			$(function() { 
 				
 				var contactModel =  {
-						id: { type: "integer", primaryKey: true, autoIncrement: true },
-						firstName: { type: "varchar", size: 32 },
-						lastName: { type: "varchar", size: 32 },
-						phone: { type: "varchar", size: 32 },
-						email: { type: "varchar", size: 64 }, 
-						website: { type: "varchar", size: 256 },
-						birthDate: { type: "varchar", size: 32 },
-						notes: { type: "varchar" },
-						photo: { type: "blob" } 
+						id: { type: "key" },
+						firstName: { type: "string", size: 32 },
+						lastName: { type: "string", size: 32 },
+						phone: { type: "string", size: 32 },
+						email: { type: "string", size: 64 }, 
+						website: { type: "string", size: 256 },
+						birthDate: { type: "string", size: 32 },
+						notes: { type: "string" },
+						photo: { type: "image" } 
 					};
 			
 				var loginView = { 

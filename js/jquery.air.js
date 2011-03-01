@@ -976,6 +976,44 @@
     };
     $.air.sqlTable.prototype = (function(){
         //Private methods
+		function createColumn(column) { 
+			var type = column.type || "string", 
+				typeMap = { 
+					"varchar" : "varchar",
+					"nvarchar" : "nvarchar",
+					"string" : "varchar", 
+					"text" : "text",
+					"int" : "integer", 
+	  				"integer" : "integer",
+					"number" : "integer", 
+					"key" : "integer", 
+	  				"float" : "float",
+					"bool" : "boolean", 
+	  				"boolean" : "boolean",
+					"clob" : "clob",
+	  				"blob" : "blob",
+					"file" : "blob", 
+					"image" : "blob", 
+	  				"timestamp" : "timestamp",
+					"vc" : "varying character",
+					"varying character" : "varying character",
+	  				"nvc" : "national varying character", 
+	  				"nationalvaryingcharacter" : "national varying character",  
+	  				"national varying character" : "national varying character"
+				};
+			
+			column.type = typeMap[type.toLowerCase()];
+		
+			switch (type) {
+				case "key":
+				column.primaryKey = true
+				column.autoIncrement = true;
+				break;
+			}
+		
+			return column;
+		};
+
         function executeQuery(sql, parms, successCallback, failureCallback){ 
             var query = new $.air.sqlQuery(this.connection);
 
@@ -996,7 +1034,7 @@
             	$(query).bind("failure", onFailure);
             }
             query.execute(sql, parms);
-        }
+        };
         
         //Private events
         
@@ -1005,9 +1043,8 @@
 			create: function(columns, onSuccess, onFailure) { 
                 var columnDefinitions = [];
                 for (var columnName in columns) {
-                    var column = columns[columnName];
-                    
-                    var columnDefinition = columnName + " " + column.type;
+                    var column = createColumn(columns[columnName]),
+						columnDefinition = columnName + " " + column.type;
                     if (column.size) {
                         columnDefinition += "(" + column.size + ")";
                     }
