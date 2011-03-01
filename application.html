@@ -146,22 +146,18 @@
 					listPresenter = {
 						about: function() { this.trigger("displayAbout"); },
 						add: function() { this.trigger("addContact"); },  
-						resetEscape: function() { this.escapeCount = 0; },  
-						resetFilter: function() { this.view.getSearchBox().val(""); }, 
-						filter: function() {  
-							var query = $.trim(this.view.getSearchBox().val()).replace(/ /g, "");
-							query = query.toLowerCase();
-							
-							this.view.getList().modelList("filter", function(item) {
-								var contact = item.data("item.modelList"),
-									target = (contact.firstName + contact.lastName).replace(/ /g,"");
-								target = target.toLowerCase();
-								return (target.search(query) >= 0);
-							});
-							
-							this.resetEscape();
-						}, 
 						
+						displayContacts: function(contacts) {
+							this.view.getList()
+								.modelList("option", "source", contacts)
+								.modelList("display"); 
+								
+							if(this.id) {
+								this.view.getList().modelList("find", {
+									id: this.id
+								});
+							}
+						}, 
 						displayContact: function() { 
 							this.view.getList().modelList("select");  
 						},  
@@ -172,11 +168,28 @@
 							return nextItem.data("item.modelList");
 						},
 						prevContact: function() {  
-							var prevItem = this.view.getList().modelList("previous");
+							var prevItem = this.view.getList().modelList("prev");
 							if(!prevItem) { return; }
 							
 							return prevItem.data("item.modelList");								
 						},
+						
+						resetEscape: function() { this.escapeCount = 0; },  
+						resetFilter: function() { this.view.getSearchBox().val(""); }, 
+						filter: function() {  
+							var query = $.trim(this.view.getSearchBox().val()).replace(/ /g, "");
+							query = query.toLowerCase();
+
+							this.view.getList().modelList("filter", function(item) {
+								var contact = item.data("item.modelList"),
+									target = (contact.firstName + contact.lastName).replace(/ /g,"");
+								target = target.toLowerCase();
+								return (target.search(query) >= 0);
+							});
+							
+							this.resetEscape();
+						}, 
+						
 						go: function() {  
 							this.view.getList().modelList({
 								
@@ -192,21 +205,8 @@
 								}, this)
 							});
 	
-							function onSuccess(e, result) { 
-								if(!result) { return; }
-	
-								var data = result.data || []; 
-								this.view.getList()
-									.modelList("option", "source", data)
-									.modelList("display");
-									
-								this.filter();  
-									
-								if(this.id) {
-									this.view.getList().modelList("find", {
-										id: this.id
-									});
-								}
+							function onSuccess(contacts) {  
+								this.displayContacts(contacts);
 							}
 							function onError(ex) { }
 							
@@ -215,8 +215,7 @@
 						events: { 
 							keydown: {   
 								def: function() { 
-									this.view.getSearchBox().focus();
-									this.filter();
+									this.view.getSearchBox().focus(); 
 								},
 								escape: function() {  
 									if (!this.escapeCount) { this.resetEscape(); }
@@ -230,6 +229,9 @@
 								down: function(){ this.nextContact(); }, 
 								up: function(){ this.prevContact(); }
 							}, 
+							input: {
+								"#searchBox" : function() { this.filter(); }
+							},
 							click: { 
 								"#viewAbout_btn": function(){ this.about(); }, 
 								"#add": function(){ this.add(); }, 
@@ -305,11 +307,11 @@
 							//save contact
 							var contact = this.readForm();
 	
-							function onSuccess(e, result) {  
-								if(!contact.id) { contact.id = result.lastInsertRowID; }
+							function onSuccess(insertId) {  
+								if(!contact.id) { contact.id = insertId; }
 								this.trigger("contactUpdated", contact);
 							}
-							function onError(e, error) { 
+							function onError(ex) { 
 								alert("error saving contact"); 
 							}
 							this.contactService.save(contact, $.proxy(onSuccess, this), $.proxy(onError, this));
@@ -317,12 +319,7 @@
 						go: function() {   
 							if(this.id) {
 								//edit 
-								function onSuccess(e, result) {
-									if(!result) return;
-									
-									var data = result.data || [],
-										contact = data[0];
-	
+								function onSuccess(contact) { 
 									this.setActiveContact(contact);
 								}
 								function onError(ex) { air.trace("error retrieving contact"); }
@@ -332,8 +329,7 @@
 								//add  
 								this.setActiveContact(this.contactService.create());
 							} 
-		
-							this.stage.focus = this.view.htmlLoader;
+
 							this.view.getFirstName().focus();
 						},
 						events: {
@@ -418,12 +414,7 @@
 								this.contactService.del({ id: this.id }, $.proxy(onDelSuccess, this), $.proxy(onDelError, this));
 							}
 							else {
-								function onGetSuccess(e, result){
-									if(!result) return;
-	
-									var data = result.data || [],
-										contact = data[0];
-									
+								function onGetSuccess(contact){ 
 									this.setActiveContact(contact);
 								}
 								function onGetError(ex) { }
@@ -499,13 +490,7 @@
 							this.trigger("deleteConfirmed", { id: this.activeContact.id }); 
 						},
 						go: function() { 
-							function onSuccess(e, result){
-								if(!result) return;
-								var data = result.data || [],
-									contact = result.data[0];
-								
-								this.setActiveContact(contact);
-							}
+							function onSuccess(contact){  this.setActiveContact(contact); }
 							function onError(ex) { } 
 							
 							this.contactService.get( { id: this.id }, $.proxy(onSuccess, this), $.proxy(onError, this));
@@ -562,18 +547,75 @@
 						}
 					},
 					contactService = {
+						getCacheKey: function(criteria) { 
+							var cacheKey = "contacts:";
+							
+							criteria = criteria || {};
+							if(criteria.id) {
+								cacheKey += "id:" + criteria.id;
+							}
+							
+							return cacheKey;
+						}, 
+						invalidateCache: function(criteria) {
+							var cacheKey = this.getCacheKey(criteria); 
+							delete this.cache[cacheKey];
+						}, 
+						
 						create: function() {
 							return this.contactModel.build();
-						}, 
+						},  
 						get: function(criteria, onSuccess, onFailure) { 
-							this.db.tables("contact").get(criteria, onSuccess, onFailure);
+							
+							var cacheKey = this.getCacheKey(criteria)
+								cached = this.cache[cacheKey];
+								
+							if(cached) { 
+								onSuccess(cached); 
+							} else {
+								function getSuccess(e, result) {
+									if(!result) { return; }
+									
+									var data = result.data || [];
+									if(data.length <= 0) { return; }
+									
+									data = data.length == 1 ? data[0] : data;
+									this.cache[cacheKey] = data;
+
+									onSuccess(data); 
+								}
+								function getFailure(ex) { onFailure(ex); }
+								
+								this.db.tables("contact").get(criteria, $.proxy(getSuccess, this), $.proxy(getFailure, this));
+							} 
 						},
 						save: function(contact, onSuccess, onFailure) {
-							this.db.tables("contact").set(contact, onSuccess, onFailure);
+							function saveSuccess(e, result) { 
+								if (contact.id) {
+									this.invalidateCache({
+										id: contact.id
+									});
+								}
+								this.invalidateCache();
+								
+								onSuccess(result.lastInsertRowID);
+							}
+							function saveFailure(ex) { onFailure(ex); }
+							
+							this.db.tables("contact").set(contact, $.proxy(saveSuccess, this), $.proxy(saveFailure, this));
 						},
 						del: function(criteria, onSuccess, onFailure) {
-							this.db.tables("contact").del(criteria, onSuccess, onFailure); 
+							function delSuccess() {
+								this.invalidateCache(criteria);
+								this.invalidateCache();
+								
+								onSuccess();
+							}
+							function delFailure(ex) { onFailure(ex); }
+							
+							this.db.tables("contact").del(criteria, $.proxy(delSuccess, this), $.proxy(delFailure, this)); 
 						}, 
+						
 						getImageUrl: function(contact) { 
 							if(!contact.photo) { return; }
 							var imageFile = $.air.files.temp(contact.id);
@@ -601,6 +643,7 @@
 						return $.extend({}, {  
 							contactService: this.services("contact", { 
 								contactModel: this.models("contact"), 
+								cache: this.cache, 
 								db: this.db 
 							}), 
 						}, args || {}); 
@@ -627,14 +670,27 @@
 						this.present("confirmDelete", this.getContactDependencies(args)); 
 					}, 
 					prev: function() {  
-						var args = $.extend({}, { reverse: true }, this.active("list").prevContact() )
+						var prevContact = this.active("list").prevContact();
+						if(!prevContact) { 
+							this.active("detail").shake(); 
+							return;
+						}
+						
+						var args = $.extend({}, { reverse: true }, prevContact);
 						this.detail(args);
 					}, 
 					next: function() { 
-						var args = $.extend({}, { reverse: false }, this.active("list").nextContact() )
+						var nextContact = this.active("list").nextContact();
+						if(!nextContact) { 
+							this.active("detail").shake();
+							return; 
+						}
+						
+						var args = $.extend({}, { reverse: false }, nextContact);
 						this.detail(args); 
 					}, 
-					go: function() {  
+					go: function() {   
+						this.cache = { }; 
 						this.db = new $.air.database("bbs-03", { 
 							tables: { 
 								"contact" : this.models("contact").toTable() 

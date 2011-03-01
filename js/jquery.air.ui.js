@@ -584,9 +584,9 @@
 		}, 
 		
 		filter: function(callback) {
-			this.element.find("div.ui-list-item").show().each(function() {
+			this.element.find("div.ui-list-item").each(function() {
 				var item = $(this);
-				if(!callback(item)) { item.hide(); }
+				if(!callback(item)) { item.hide(); } else { item.show(); }
 			});
 		},
 
@@ -605,8 +605,9 @@
 				}
 			}
 			
-			this.active = item.eq(0)
-				.attr("id", "ui-active-listitem");
+			this.active = item.eq(0).attr("id", "ui-active-listitem"); 
+			
+			this.highlight();
 				
 			this._trigger("focus", event, { item: this.active });
 		},
@@ -614,8 +615,7 @@
 		deactivate: function() {
 			if (!this.active) { return; }
 
-			this.active
-				.removeAttr("id");
+			this.active.removeAttr("id");
 			
 			this._trigger("blur");
 			
@@ -623,19 +623,21 @@
 		},
 	
 		next: function(e) {
+			if(!this.options.circular && this.last()) { return; } 
 			return this.move("next", ".ui-list-item:first", e);
 		},
 	
-		previous: function(e) {
+		prev: function(e) {
+			if(!this.options.circular && this.first()) { return; }
 			return this.move("prev", ".ui-list-item:last", e);
 		},
 	
 		first: function() {
-			return this.active && !this.active.prevAll(".ui-list-item").length;
+			return this.active && !this.active.prevAll(".ui-list-item:visible").length;
 		},
 	
 		last: function() {
-			return this.active && !this.active.nextAll(".ui-list-item").length;
+			return this.active && !this.active.nextAll(".ui-list-item:visible").length;
 		},
 	
 		move: function(direction, edge, e) { 
@@ -643,15 +645,19 @@
 				this.activate(e, this.element.children(edge));
 				return;
 			}
-			var next = this.active[direction + "All"](".ui-list-item").eq(0); 
+			
+			var next = this.active[direction + "All"](".ui-list-item:visible").eq(0); 
 			if (next.length) {
 				this.activate(e, next);
-			} else if(this.options.circular){
-				this.activate(e, this.element.children(edge));
+			} else {
+
+				if (this.options.circular) {
+					this.activate(e, this.element.children(edge));
+				} else {
+					this.deactivate();
+				}
 			} 
-			
-			this.highlight();
-			
+
 			return this.active;
 		}, 
 	
@@ -672,9 +678,7 @@
 				if($item.data("item.modelList").id == value.id) {
 					self.activate(null, $item); 
 				}
-			});
-			
-			this.highlight();
+			}); 
 		}, 
 	
 		select: function(e) {  
