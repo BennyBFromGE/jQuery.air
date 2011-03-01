@@ -635,7 +635,7 @@
 						this.detail(args); 
 					}, 
 					go: function() {  
-						this.db = new $.air.sqlLite("bbs-03", { 
+						this.db = new $.air.database("bbs-03", { 
 							tables: { 
 								"contact" : this.models("contact").toTable() 
 							} 

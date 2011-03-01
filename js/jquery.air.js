@@ -919,18 +919,18 @@
     })();
 	
 	/*** 
-	 * jQuery.air sqlLite support
+	 * jQuery.air SQLite support
 	 * 
-	 * jQuery.air.sqlQuery
-	 * jQuery.air.sqlTable
-	 * jQuery.air.sqlLite
+	 * jQuery.air.query
+	 * jQuery.air.table
+	 * jQuery.air.datbase
 	 * 
 	 ***/
 	
-	$.air.sqlQuery = function(connection){
+	$.air.query = function(connection){
         this.connection = connection; 
     };
-    $.air.sqlQuery.prototype = (function(){
+    $.air.query.prototype = (function(){
         //Private methods
         function setParm(key, value){ 
 			if (!$.isFunction(value)) {
@@ -968,13 +968,13 @@
         };
     })();
     
-    $.air.sqlTable = function(name, connection){
+    $.air.table = function(name, connection){
         this.name = name; 
         this.connection = connection;
 
         this.init();
     };
-    $.air.sqlTable.prototype = (function(){
+    $.air.table.prototype = (function(){
         //Private methods
 		function createColumn(column) { 
 			var type = column.type || "string", 
@@ -1015,7 +1015,7 @@
 		};
 
         function executeQuery(sql, parms, successCallback, failureCallback){ 
-            var query = new $.air.sqlQuery(this.connection);
+            var query = new $.air.query(this.connection);
 
             if (successCallback) { 
 				function onSuccess(e, result) { 
@@ -1057,14 +1057,14 @@
                     columnDefinitions.push(columnDefinition); 
                 }
 
-	            var query = new $.air.sqlQuery(this.connection),
+	            var query = new $.air.query(this.connection),
 					sql = "CREATE TABLE IF NOT EXISTS " + this.name + " ( " + columnDefinitions.join() + ")",  
 					parms = {}; 
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
 			},
             get: function(parms, onSuccess, onFailure){ 
-				var query = new $.air.sqlQuery(this.connection),  sql = "SELECT * FROM " + this.name;
+				var query = new $.air.query(this.connection),  sql = "SELECT * FROM " + this.name;
 					
                 if (!$.isEmptyObject(parms)) {
                     var clauses = [];
@@ -1083,7 +1083,7 @@
                     return;
                 } 
 				
-	            var query = new $.air.sqlQuery(this.connection), sql = "";
+	            var query = new $.air.query(this.connection), sql = "";
                 if (!parms.id) {
                     sql = "INSERT INTO " + this.name + " ";
 
@@ -1115,7 +1115,7 @@
             del: function(parms, onSuccess, onFailure){
                 if ($.isEmptyObject(parms) || !parms.id) { return; }
                 
-                var query = new $.air.sqlQuery(this.connection), 
+                var query = new $.air.query(this.connection), 
 					sql = "DELETE FROM " + this.name + " WHERE id = :id";
 				
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
@@ -1123,7 +1123,7 @@
         };
     })();
     
-    $.air.sqlLite = function(key, config){
+    $.air.database = function(key, config){
         this.key = key;
         this.config = $.extend({}, {
             tables: {} 
@@ -1139,7 +1139,7 @@
         
         this.init();
     };
-    $.air.sqlLite.prototype = (function(){
+    $.air.database.prototype = (function(){
         //Private methods 
         
         //Private events
@@ -1151,7 +1151,7 @@
 				
         function onOpen(event){  
 			for(var tableKey in this.config.tables) { 
-				var table = new $.air.sqlTable(tableKey, this.connection);  
+				var table = new $.air.table(tableKey, this.connection);  
 				this.tables(tableKey, table);
 				this.tableCount++;
 				
@@ -1183,21 +1183,23 @@
                 this.connection.close();
             },
             open: function(pwd, onSuccess, onFailure){
-				if(onSuccess) {
+				if($.isFunction(onSuccess)) {
 					$(this).bind("opened", onSuccess);
 				}
-				if(onFailure) {
+				if($.isFunction(onFailure)) {
 					$(this).bind("openError", onFailure);
 				}
 				
-                this.connection.openAsync(this.file, air.SQLMode.CREATE, null, false, 1024, $.air.crypto.encrypt(pwd));
+				pwd = typeof pwd === "string" ? $.air.crypto.encrypt(pwd) : null;
+				
+                this.connection.openAsync(this.file, air.SQLMode.CREATE, null, false, 1024, pwd);
             },
             
             isInitialized: function(){
                 return this.file.exists;
             },
             
-            tables: function(name, table){
+            tables: function(name, table) {
                 if (!table) { 
                     return this.table[name];
                 }
