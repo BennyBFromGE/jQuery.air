@@ -1497,70 +1497,75 @@
                 var effect = getSingleFlipYEffect.call(this);  
                 effect.start(!reversed); 
             }, 
+
+            flip3d: function(show){ 
+                var effect = getPageEffect.call(this); 
+				if(!show) {
+					$(effect).bind("finished", $.proxy(function() { this.disable(); }, this));
+	                effect.keepTheEffect = true; 
+					effect.start(false);  
+				} else {
+					$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
+	                effect.keepTheEffect = false; 
+					effect.start(true);  
+				}
+            },
+			
+            dissolve: function(){ 
+                var effect = getDissolveEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
+                effect.hideOnFinish = true; 
+				effect.start(false); 
+            },
+			
+            appear: function(){
+                var effect = getDissolveEffect.call(this); 
+				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
+                effect.hideOnFinish = false; 
+				effect.start(true); 
+            },
+			
+			ripple: function(show) {
+                var effect = getWavesEffect.call(this); 
+				if(!show) {
+					$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
+	                effect.hideOnFinish = true; 
+					effect.start(true); 
+				} else {
+					$(effect).bind("starting", $.proxy(function() { this.show(); }, this));
+	                effect.hideOnFinish = false; 
+					effect.start(false);
+				}
+			},  
+			
+			zoom: function(show, el) {
+                var blenderEffect = getPageEffect.call(this),
+					effect = getZoomEffect.call(this),
+					bounds = $.air.bounds.get(el); 
+				
+				if(!show) { 
+	                blenderEffect.keepTheEffect = false; 
+	                blenderEffect.start(true);
+					
+					$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
+	                effect.tween.bounds = $.air.bounds.get(el); 
+					effect.start(true);  
+				} else { 
+	                blenderEffect.tween.duration = 1500;
+	                blenderEffect.keepTheEffect = false; 
+	                blenderEffect.start(true);
+				
+					$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
+	                effect.tween.bounds = $.air.bounds.get(el); 
+					effect.start(false); 
+				}
+			},  
             
             shake: function(){
                 var effect = getShakeEffect.call(this); 
                 effect.hideOnFinish = false;
                 effect.tween.disableInteraction = true; 
 				effect.start(false);
-            },
-            blenderDissolve: function(){ 
-                var effect = getDissolveEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
-                effect.hideOnFinish = true; 
-				effect.start(false); 
-            },
-            blenderAppear: function(){
-                var effect = getDissolveEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
-                effect.hideOnFinish = false; 
-				effect.start(true); 
-            },
-            blenderHide: function(){  
-                var effect = getPageEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.disable(); }, this));
-                effect.keepTheEffect = true; 
-				effect.start(false); 
-            },
-            blenderShow: function(){ 
-                var effect = getPageEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
-                effect.keepTheEffect = false; 
-				effect.start(true);  
-            },
-            wavesHide: function(){
-                var effect = getWavesEffect.call(this);  
-				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
-                effect.hideOnFinish = true; 
-				effect.start(true); 
-            },
-            wavesShow: function() {     
-                var effect = getWavesEffect.call(this); 
-				$(effect).bind("starting", $.proxy(function() { this.show(); }, this));
-                effect.hideOnFinish = false; 
-				effect.start(false);
-            },
-            
-            zoomHide: function(el){
-                var blenderEffect = getPageEffect.call(this); 
-                blenderEffect.keepTheEffect = false; 
-                blenderEffect.start(true);
-				
-                var effect = getZoomEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.hide(); }, this));
-                effect.tween.bounds = $.air.bounds.get(el); 
-				effect.start(true); 
-            },
-            zoomShow: function(el){ 
-                var blenderEffect = getPageEffect.call(this); 
-                blenderEffect.tween.duration = 1500;
-                blenderEffect.keepTheEffect = false; 
-                blenderEffect.start(true);
-				
-                var effect = getZoomEffect.call(this); 
-				$(effect).bind("finished", $.proxy(function() { this.show(); }, this));
-                effect.tween.bounds = $.air.bounds.get(el); 
-				effect.start(false); 
             }
 		};
 	})();
@@ -1721,8 +1726,7 @@
 				if(current) {  
 					if(!dependencies) return current;
 
-					for(var key in dependencies) { 
-//						if(current[key]) continue;
+					for(var key in dependencies) {  
 						current[key] = dependencies[key]; 
 					} 
 					return current; 

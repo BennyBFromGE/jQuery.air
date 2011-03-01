@@ -240,16 +240,16 @@
 					}, 
 					listTransitions = { 
 						detail: function() { 
-							this.from.blenderHide(); 
-							this.to.zoomShow(this.from.view.getList());
+							this.from.flip3d(false); 
+							this.to.zoom(true, this.from.view.getList());
 						}, 
 						edit: function() {  
-							this.from.blenderHide();
+							this.from.flip3d(false);
 	
-							this.to.zoomShow(this.from.view.getList());
+							this.to.zoom(true, this.from.view.getList());
 						}, 
 						about: function() {
-							this.to.wavesShow();
+							this.to.ripple(true);
 						}
 					};
 					
@@ -351,8 +351,8 @@
 					}, 
 					editTransitions = {
 						list: function() { 
-							this.from.zoomHide(this.to.view.getList());
-							this.to.blenderShow();
+							this.from.zoom(false, this.to.view.getList());
+							this.to.flip3d(true);
 						},
 						detail: function() { 
 							this.to.flipX(this.from, true); 
@@ -454,12 +454,12 @@
 						list: function() {   
 							//todo: move to presenter
 							if (this.from.deleted) { 
-								this.from.blenderDissolve();
+								this.from.dissolve();
 							} else {
-								this.from.zoomHide(this.to.view.getList());
+								this.from.zoom(false, this.to.view.getList());
 							}
 						
-							this.to.blenderShow();
+							this.to.flip3d(true);
 						},
 						detail: function() {  
 							this.from.flipY(this.to.reverse);
@@ -524,7 +524,7 @@
 					}, 
 					confirmDeleteTransitions = {
 						detail: function() {
-							this.from.blenderDissolve();
+							this.from.dissolve();
 						}
 					};
 					
@@ -553,7 +553,7 @@
 						}
 					},
 					aboutTransitions = { 
-						list: function(){ this.from.wavesHide(); } 
+						list: function(){ this.from.ripple(false); } 
 					};		
 	
 				var authService = { 
