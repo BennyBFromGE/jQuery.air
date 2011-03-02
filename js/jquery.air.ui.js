@@ -673,12 +673,23 @@
 		find: function(value) {
 			var self = this;
 			
-			this.element.children().each(function(index, item) {
+			self.element.children().each(function(index, item) {
 				var $item = $(item);
 				if($item.data("item.modelList").id == value.id) {
 					self.activate(null, $item); 
 				}
 			}); 
+		}, 
+		
+		update: function(item) {
+			if(!this.active) { return; }
+
+			var self = this, 
+				options = self.options;
+				
+			this.active
+				.html("")
+				.append(self._renderItem(item, options))
 		}, 
 	
 		select: function(e) {  

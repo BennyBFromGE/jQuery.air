@@ -171,11 +171,7 @@
 	};
 	
 	/*** jQuery.air.files - file utility ***/
-	$.air.files = {
-		temp: function(id) { 
-			var dir = air.File.applicationStorageDirectory.resolvePath("temp/");
-			return id ? dir.resolvePath(id) : dir.resolvePath("$temp$");
-		},
+	$.air.files = { 
 		move: function(oldFile, newFile) { 
 			try { 
 				oldFile.moveTo(newFile);	
@@ -249,6 +245,7 @@
 				var img = new air.Bitmap(scaled),
 					bytes = runtime.com.adobe.images.PNGEncoder.encode(img.bitmapData);  
 				if (!$.air.files.write(resized, bytes)) { onResize(false); }
+				
 				onResize(true, resized);
 			};
 			function onError(event) {
@@ -256,8 +253,8 @@
 				
 				onResize(false);
 			};
-			loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, completeHandler);
-			loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, ioErrorHandler); 
+			loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, onComplete);
+			loader.contentLoaderInfo.addEventListener(air.IOErrorEvent.IO_ERROR, onError); 
 			loader.load(new air.URLRequest(orig.url));
 		}
 	}; 
@@ -716,12 +713,20 @@
                 type = type.toLowerCase();
                 switch (type) {
                     case "flip":
-                        return new $.air.flipEffect(config);
+                        return new $.air.flipEffect($.extend({}, { 
+							axis: air.Vector3D.X_AXIS, 
+							duration: 200 
+						}, config || {}));
                     case "singleflip":
                     case "single-flip":
-                        return new $.air.singleFlipEffect(config);
+                        return new $.air.singleFlipEffect($.extend({}, {
+							axis: air.Vector3D.Y_AXIS, 
+							duration: 300
+						}, config || {}));
                     case "zoom":
-                        return new $.air.zoomEffect(config);
+                        return new $.air.zoomEffect($.extend({}, {
+							duration: 300
+						}, config || {}));
                 }
             }
         };
@@ -903,12 +908,14 @@
                     case "waves":
                         return new $.air.blenderEffect($.extend({}, {
 				            url: "app:/lib/waves.pbj",
+							shaderConfig: { waves: 2, weight: 0.9 }, 
 				            duration: 1200,
 				            transition: $.air.animation.linear
 				        }, config || {}));
                     case "shake": 
                         return new $.air.blenderEffect($.extend({}, {
             				url: "app:/lib/shake.pbj",
+							shaderConfig: { waves: 2, weight: 0.9 }, 
             				duration: 1000
 						}, config || {}));
                     default:
@@ -947,7 +954,7 @@
             
 			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onSuccess, this));
         }
-        function onError(error){ 
+        function onError(error){  
             $(this).trigger("error", [error]);
             
 			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
@@ -971,12 +978,16 @@
     $.air.table = function(name, connection){
         this.name = name; 
         this.connection = connection;
+		
+		this.columns = {};
 
         this.init();
     };
     $.air.table.prototype = (function(){
         //Private methods
 		function createColumn(column) { 
+			column = column || {};
+		
 			var type = column.type || "string", 
 				typeMap = { 
 					"varchar" : "varchar",
@@ -1018,7 +1029,7 @@
             var query = new $.air.query(this.connection);
 
             if (successCallback) { 
-				function onSuccess(e, result) { 
+				function onSuccess(e, result) {  
 					successCallback(e, result);
 					
 					$(query).unbind("success", onSuccess);
@@ -1026,25 +1037,28 @@
                 $(query).bind("success", onSuccess);
             }
             if (failureCallback) {
-				function onFailure(e, result) {
+				function onFailure(e, result) { 
 					failureCallback(e, result);
 					
                 	$(query).unbind("failure", onFailure);
 				}
             	$(query).bind("failure", onFailure);
             }
+
             query.execute(sql, parms);
         };
         
         //Private events
         
         return {
-            init: function(){ },
+            init: function() {},
 			create: function(columns, onSuccess, onFailure) { 
-                var columnDefinitions = [];
+                
+				var columnDefinitions = [];
                 for (var columnName in columns) {
                     var column = createColumn(columns[columnName]),
 						columnDefinition = columnName + " " + column.type;
+						
                     if (column.size) {
                         columnDefinition += "(" + column.size + ")";
                     }
@@ -1054,7 +1068,10 @@
                     if (column.autoIncrement === true) {
                         columnDefinition += " AUTOINCREMENT ";
                     }
+					
                     columnDefinitions.push(columnDefinition); 
+					
+					this.columns[columnName] = column;
                 }
 
 	            var query = new $.air.query(this.connection),
@@ -1063,12 +1080,24 @@
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
 			},
+			filterParms: function(parms) { 
+				var tableColumns = this.columns, filtered = {};
+				
+				$.each(parms, function(key, value) { 
+					if(!tableColumns[key]) { return; }
+					filtered[key] = value; 
+				}); 
+				
+				return filtered;
+			}, 
             get: function(parms, onSuccess, onFailure){ 
 				var query = new $.air.query(this.connection),  sql = "SELECT * FROM " + this.name;
 					
                 if (!$.isEmptyObject(parms)) {
+					parms = this.filterParms(parms);
+					
                     var clauses = [];
-					$.each(parms, function(key, value) {
+					$.each(parms, function(key, value) {  
 						clauses.push(key + "= :" + key);
 					});
                     
@@ -1081,35 +1110,37 @@
                 if ($.isEmptyObject(parms)) {
 					air.trace("set parms empty");
                     return;
-                } 
+                }  
+				parms = this.filterParms(parms);
 				
 	            var query = new $.air.query(this.connection), sql = "";
+				
                 if (!parms.id) {
                     sql = "INSERT INTO " + this.name + " ";
 
 					delete parms["id"];
                     var columns = [], values = [];
-					$.each(parms, function(key, value) {
-						if (!$.isFunction(value)) {
-							columns.push(key);
-							values.push(":" + key);
-						}
+					$.each(parms, function(key, value) { 
+						if($.isFunction(value)) { return; }
+
+						columns.push(key);
+						values.push(":" + key); 
 					}) 
                     sql += "(" + columns.join(",") + ") VALUES (" + values.join(",") + ")"; 
                 }
                 else {
                     sql = "UPDATE " + this.name + " SET "; 
 					
-                    var columns = [];
-					$.each(parms, function(key, value) {
-						if (!$.isFunction(value)) {
-							columns.push(key + " = :" + key);
-						}
+                    var tableColumns = this.columns, columns = [];
+					$.each(parms, function(key, value) { 
+						if($.isFunction(value)) { return; }
+						
+						columns.push(key + " = :" + key);
 					});
                     
                     sql += columns.join(",") + " WHERE id = :id"; 
                 } 
-				
+
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             },
             del: function(parms, onSuccess, onFailure){
@@ -1342,20 +1373,15 @@
         
         //3D fx 
         function getFlipXEffect(to, config){
-            var fxConfig = $.extend({}, { 
-				htmlLoader: this.view.htmlLoader, 
-				secondHtmlLoader: to.view.htmlLoader, 
-				axis: air.Vector3D.X_AXIS, 
-				duration: 200 
-			}, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, secondHtmlLoader: to.view.htmlLoader }, config || {} ); 
             return this.fxCache.get3DEffect(this.key, "flip", fxConfig);
         };
         function getSingleFlipYEffect(config){
-            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, axis: air.Vector3D.Y_AXIS, duration: 300 }, config || {} );  
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} );  
             return this.fxCache.get3DEffect(this.key, "single-flip", fxConfig);
         };
         function getZoomEffect(config){
-            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, duration: 300 }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} ); 
 			return this.fxCache.get3DEffect(this.key, "zoom", fxConfig);
         };
         
@@ -1369,16 +1395,16 @@
             return this.fxCache.getBlenderEffect(this.key, "page", fxConfig);
         };
         function getWavesEffect(config){
-            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} ); 
             return this.fxCache.getBlenderEffect(this.key, "waves", fxConfig);
         };
         function getShakeEffect(config){
-            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader, shaderConfig: { waves: 2, weight: 0.9 } }, config || {} ); 
+            var fxConfig = $.extend({}, { htmlLoader: this.view.htmlLoader }, config || {} ); 
             return this.fxCache.getBlenderEffect(this.key, "shake", fxConfig);
         };
 		
 		function parseSelector(selector) {
-			return selector; //return "#" + selector;
+			return selector;  
 		};
 		
 		return {
@@ -1629,13 +1655,17 @@
         //Private methods     
         
         //Private events
-        function onKeyDown(e){ 
-            if (e.target.stage.mouseChildren == true) {  
-				this.context.handleKeyDown(e); 
-            }
+        function onKeyDown(e){
+			if(!this.context) { return; }
+		 	
+			if(e.target.stage.mouseChildren != true) { return; }
+
+			this.context.handleKeyDown(e);  
         }
         
-        function onUserIdle(){ alert("fart!"); }
+        function onUserIdle() {  
+			
+		}
         
         function onHtmlLoaderLoad(e){ 
 			var loader = e.target;
@@ -1663,7 +1693,10 @@
 				this.staged[sender.key] = sender; 
 				break;
 				default: 
-				this.context = sender;  
+				data = data || {};
+				if (!data.ghost) {
+					this.context = sender;
+				}  
 			 	this.events[e.type].call(this, data); 
 				break;
 			}
