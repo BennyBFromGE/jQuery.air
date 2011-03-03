@@ -947,9 +947,7 @@
         
         //Private events				
         function onSuccess(){ 
-            var result = this.statement.getResult(), 
-				data = result ? result.data : {};
-
+            var result = this.statement.getResult(); 
             $(this).trigger("success", [result]);
             
 			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onSuccess, this));

@@ -545,9 +545,10 @@
 				this._render(content);
 				
 				this._trigger("open");
-			} else {
-				this.close();
-			}
+			} 
+//			else {
+//				this.close();
+//			}
 		},
 
 		_render: function(items) { 
@@ -581,9 +582,20 @@
 		}, 
 		
 		filter: function(callback) {
-			this.element.find("div.ui-list-item").each(function() {
-				var item = $(this);
-				if(!callback(item)) { item.hide(); } else { item.show(); }
+			var self = this, active = self.active;
+
+			self.element.children().each(function() {
+				var item = $(this), data = item.data("item.modelList");
+				if(!callback(item)) { 
+					item.hide(); 
+					
+					if (!active) { return; }
+					if(active.data("item.modelList").id == data.id) { 
+						self.deactivate(null, item); 
+					}
+				} else { 
+					item.show(); 
+				}
 			});
 		},
 
@@ -612,7 +624,9 @@
 		deactivate: function() {
 			if (!this.active) { return; }
 
-			this.active.removeAttr("id");
+			this.active
+				.removeClass("selected")
+				.removeAttr("id");
 			
 			this._trigger("blur");
 			
@@ -664,18 +678,19 @@
 		
 		highlight: function() { 
 			this.element.find("div.selected").removeClass("selected");
+			
+			if(!this.active) { return; }
 			this.active.addClass("selected");
 		},
 		
 		find: function(value) {
-			var self = this;
-			
-			self.element.children().each(function(index, item) {
-				var $item = $(item);
-				if($item.data("item.modelList").id == value.id) {
-					self.activate(null, $item); 
+			var self = this; 
+			self.element.children().each(function() {
+				var item = $(this);
+				if(item.data("item.modelList").id == value.id) {
+					self.activate(null, item); 
 				}
-			}); 
+			});  
 		}, 
 		
 		update: function(item) {
@@ -691,6 +706,8 @@
 	
 		select: function(e) {   
 			this.highlight();
+			
+			if(!this.active) { return; }
 			this._trigger("select", e, { item: this.active });
 		}
 	}); 
