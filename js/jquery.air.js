@@ -1465,6 +1465,7 @@
 				$(this.eventBus).trigger(e, [this, args]);
 			}, 
 			
+			viewSource: function(config) { this.trigger("sourceViewed", config); }, 
 			restore: function() { this.trigger("restored"); }, 
 			maximize: function() { this.trigger("maximized"); }, 
 			minimize: function() { this.trigger("minimized"); },
@@ -1643,17 +1644,18 @@
 		this.events = $.extend({}, {
 			hidden : function() { }, 
 			shown : function() { }, 
-			restored : function() { this.restore(); }, 
-			maxmized : function() { this.maximize(); }, 
-			minimized : function() { this.minimize(); },
-			exited : function() { this.exit(); } 
+			sourceViewed: function(args) { this.viewSource(args) }, 
+			restored : function(args) { this.restore(args); }, 
+			maxmized : function(args) { this.maximize(args); }, 
+			minimized : function(args) { this.minimize(args); },
+			exited : function(args) { this.exit(args); } 
 		}, this.events || {});
 		
 		this.init();
 	};
 	$.air.shell.prototype = (function() { 
         //Private methods     
-        
+
         //Private events
         function onKeyDown(e){
 			if(!this.context) { return; }
@@ -1678,7 +1680,8 @@
         }  
 		
 		function onPresenterEvent(e, sender, data) { 
-			switch(e.type) {
+			switch(e.type) {  
+				
 				case "hidden": 
 				var presenter = this.staged[sender.key];
 				if(!presenter) return;
@@ -1692,6 +1695,7 @@
 				this.context = sender;
 				this.staged[sender.key] = sender; 
 				break;
+				
 				default: 
 				data = data || {};
 				if (!data.ghost) {
@@ -1800,6 +1804,15 @@
 				var transition = this.transitions(this.context, presenter); 
 				transition.play();  
             },
+			viewSource: function(args) { 
+				var sv = air.SourceViewer.getDefault()
+					config = $.extend({}, {
+						exclude : [],
+					}, args || {});
+					
+				sv.setup(config);
+				sv.viewSource(); 
+			},
 			restore: function() { nativeWindow.restore(); }, 
 			maximize: function() { nativeWindow.maximize(); }, 
 			minimize: function() { nativeWindow.minimize(); }, 

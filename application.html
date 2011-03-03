@@ -143,7 +143,7 @@
 						getSearchBox: function() { return this.$("#searchBox"); }, 
 						getList: function() { return this.$("#listPageBorder"); }
 					}, 
-					listPresenter = {
+					listPresenter = { 
 						about: function() { this.trigger("displayAbout"); },
 						add: function() { this.trigger("addContact"); },  
 						
@@ -243,6 +243,7 @@
 							},
 							click: { 
 								"#viewAbout_btn": function(){ this.about(); }, 
+								"#viewSources_btn": function() { this.viewSource({ colorScheme: 'nightScape' }); },
 								"#add": function(){ this.add(); }, 
 								"#minimize": function(){ this.minimize(); },
 								"#close": function(){ this.exit(); }
@@ -751,7 +752,7 @@
 							this.setDefaultImagePath(contact);
 							
 							if(!contact.photo) { return; } 
-							var imageFile = $.air.files.temp(contact.id);
+							var imageFile = this.generateTemp(contact);
 							$.air.files.write(imageFile, contact.photo);
 							
 							var imagePath =  imageFile.url + "?" + Math.random();

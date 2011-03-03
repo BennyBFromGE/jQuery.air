@@ -561,12 +561,9 @@
 						.addClass("ui-list-item ui-helper-reset")
 						.data( "item.modelList", item)
 						.append(self._renderItem(item, options))
-						.mouseenter(function( event ) {
+						.click(function( event ) {
 							self.activate(event, $(this));
-						})
-						.mouseleave(function() {
-							self.deactivate();
-						});
+						}); 
 				self.element.append(listItem);
 			}); 
 
@@ -665,7 +662,7 @@
 			return this.element.height() < this.element.attr("scrollHeight");
 		},
 		
-		highlight: function() {
+		highlight: function() { 
 			this.element.find("div.selected").removeClass("selected");
 			this.active.addClass("selected");
 		},
@@ -692,7 +689,7 @@
 				.append(self._renderItem(item, options))
 		}, 
 	
-		select: function(e) {  
+		select: function(e) {   
 			this.highlight();
 			this._trigger("select", e, { item: this.active });
 		}
