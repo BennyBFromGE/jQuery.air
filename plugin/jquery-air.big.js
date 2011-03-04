@@ -895,26 +895,26 @@
                 switch (type) {
                     case "dissolve":
                         return new $.air.blenderEffect($.extend({}, {
-				            url: "app:/lib/disolve.pbj",
+				            url: "app:/lib/pixelblender/disolve.pbj",
 				            duration: 500,
 				            transition: $.air.animation.linear
 				        }, config || {}));
                     case "page":
                         return new $.air.blenderEffect($.extend({}, {
-				            url: "app:/lib/page.pbj",
+				            url: "app:/lib/pixelblender/page.pbj",
 				            duration: 1200,
 				            transition: $.air.animation.ease
 				        }, config || {}));
                     case "waves":
                         return new $.air.blenderEffect($.extend({}, {
-				            url: "app:/lib/waves.pbj",
+				            url: "app:/lib/pixelblender/waves.pbj",
 							shaderConfig: { waves: 2, weight: 0.9 }, 
 				            duration: 1200,
 				            transition: $.air.animation.linear
 				        }, config || {}));
                     case "shake": 
                         return new $.air.blenderEffect($.extend({}, {
-            				url: "app:/lib/shake.pbj",
+            				url: "app:/lib/pixelblender/shake.pbj",
 							shaderConfig: { waves: 2, weight: 0.9 }, 
             				duration: 1000
 						}, config || {}));
