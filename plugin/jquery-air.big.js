@@ -149,7 +149,7 @@
 			data.draw(loader);
 			return new air.Bitmap(data);
 		}
-	};
+	}; 
 	
     /*** jQuery.air.window - window utility ***/ 
 	$.air.window = {
@@ -282,6 +282,54 @@
 	        clearData: function(format) {
 	            clipboard.clearData(format);
 	        }
+		};
+	})();
+
+	/*** jQuery.air.request ***/
+	$.air.request = function(url, onSuccess, onFailure) {
+		this.url = url;
+		
+		this.loader = null;
+	};
+	$.air.request.prototype = (function() { 
+
+		return {
+			send: function(onSuccess, onFailure) { 
+				var request = new air.URLRequest(this.url);
+				
+				this.loader = new air.URLLoader();
+
+//				function onHTTPStatus() {} 
+//				function onProgress() {}
+				
+				function onIOError() { onFailure(); }
+				
+				function onSecurityError() { onFailure(); }
+				
+				function onComplete(e) {  
+					var loaded = e.target;
+					if (loaded != null && loaded.data != null)
+					{
+						if(!onSuccess) { return; }
+
+						onSuccess({data: JSON.parse(loaded.data)});  
+					}
+					else
+					{
+						if(!onFailure) { return; }
+						
+						onFailure(); 
+					}
+				} 
+				
+//		        this.loader.addEventListener(air.HTTPStatusEvent.HTTP_STATUS, $.proxy(onHTTPStatus, this));
+//		        this.loader.addEventListener(air.ProgressEvent.PROGRESS, $.proxy(onProgress, this));
+		        this.loader.addEventListener(air.IOErrorEvent.IO_ERROR, $.proxy(onIOError, this));
+		        this.loader.addEventListener(air.SecurityErrorEvent.SECURITY_ERROR, $.proxy(onSecurityError, this)); 
+		        this.loader.addEventListener(air.Event.COMPLETE, $.proxy(onComplete, this));
+				
+		        this.loader.load(request);		 
+			}
 		};
 	})();
 
@@ -945,18 +993,28 @@
 			}
         }
         
+		function addListeners() {
+			this.statement.addEventListener(air.SQLEvent.RESULT, $.proxy(onSuccess, this));
+			this.statement.addEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));    
+		}
+		
+		function removeListeners() {
+			this.statement.removeEventListener(air.SQLEvent.RESULT, $.proxy(onSuccess, this));
+			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
+		}
+		
         //Private events				
         function onSuccess(){ 
             var result = this.statement.getResult(); 
             $(this).trigger("success", [result]);
             
-			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onSuccess, this));
-        }
+			removeListeners.call(this);
+		}
         function onError(error){  
             $(this).trigger("error", [error]);
             
-			this.statement.removeEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
-        }
+			removeListeners.call(this);
+		}
         
         return { 
             execute: function(sql, parms) {
@@ -966,9 +1024,8 @@
                 this.statement.clearParameters();
                 $.each(parms, $.proxy(setParm, this)); 
 				
-				this.statement.addEventListener(air.SQLEvent.RESULT, $.proxy(onSuccess, this));
-				this.statement.addEventListener(air.SQLErrorEvent.ERROR, $.proxy(onError, this));
-                this.statement.execute(); //-1, new air.Responder($.proxy(onSuccess, this), $.proxy(onFailure, this)));
+				addListeners.call(this);
+				this.statement.execute(); 
             }
         };
     })();
@@ -1407,6 +1464,7 @@
 		
 		return {
 			init: function() {  
+				
 				for(var cat in this.events) { 
 					var tempCat = cat.toLowerCase();
 					
@@ -1441,8 +1499,11 @@
 			go: function() {}, //Default is empty - expected to be specified in presenter proto  
 			
 			handleKeyDown: function(e) { 
-				var handled = false, defCallback = this.events.keydown["def"];
-				$.each(this.events.keydown, $.proxy(function(selector, callback) {  
+				var keydownEvents = this.events["keydown"]; 
+				if(!keydownEvents) { return; }
+				
+				var handled = false, defCallback = keydownEvents["def"];
+				$.each(keydownEvents, $.proxy(function(selector, callback) {  
 					var keyCode = selector.toUpperCase();
 					switch(keyCode) {
 						case "DEL":

@@ -25,18 +25,119 @@
 					
 					},
 					views: {
-						
+						index: { 
+							path: "/views/index.html"
+						},
+						fx: {
+							path: "/views/fx.html"
+						},
+						request: {
+							path: "/views/request.html"
+						}
 					},
 					presenters: {
-					
+						index: {
+							displayFxTest: function() {
+								this.trigger("displayFxTest");
+							},
+							displayRequestTest: function() {
+								this.trigger("displayRequestTest");
+							},
+							go: function() {
+								
+							}, 
+							events: {
+								click: {
+									"#fx": function() { this.displayFxTest(); }, 
+									"#request": function() { this.displayRequestTest(); }
+								}
+							}
+						},
+						fx: {
+							cancel: function() {
+								this.trigger("fxTestCanceled");
+							},
+							go: function() {},
+							events: {
+								click: {
+									"#cancel": function() { this.cancel(); }
+								}
+							}
+						},
+						request: {
+							run: function() { 
+								function onSuccess(result) {
+									var data = result.data || {};
+
+								}	
+								
+								function onFailure() {
+									alert("request failed");
+								}
+							
+								this.requestService.find(onSuccess, onFailure);
+							},
+							cancel: function() {
+								this.trigger("requestTestCanceled");
+							},
+							go: function() {
+								
+							}, 
+							events: {
+								click: {
+									"#run" : function() { this.run(); }, 
+									"#cancel": function() { this.cancel(); }
+								}
+							}
+						}
 					},
 					transitions: {
 					
 					},
 					services: {
-					
+						requestService: {
+							find: function(onSuccess, onFailure) {
+								var url = "http://api.groupon.com/v2/divisions?client_id=8427b4edf3a0c1395e4b8b94bbaa38da85f870f2";
+								var request = new $.air.request(url);	
+								request.send(onSuccess, onFailure);
+							}
+						}
 					},
-					shell: {}
+					shell: {
+						index: function() {
+							this.present("index");
+						},
+						fx: function() {
+							this.present("fx");
+						},
+						request: function() {
+							this.present("request", {
+								requestService: this.services("requestService")
+							});
+						},
+						go: function() {
+							this.index();
+						},
+						events: {
+							//index events
+							displayFxTest: function() {
+								this.fx();
+							},
+							displayRequestTest: function() {
+								this.request();
+							},
+							
+							//fx events
+							fxTestCanceled: function() {
+								this.index();
+							},
+							
+							//request events
+							requestTestCanceled: function() {
+								this.index();
+							}
+						}
+					}
 				});
 			}); 
 		</script>
