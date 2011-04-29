@@ -186,20 +186,6 @@
 			} catch(ex) { 
 				air.trace(ex);
 			}
-		},
-		
-		text: function(file) {
-			
-			var fileStream = new air.FileStream(), text = "";
-			try {		
-				fileStream.open(file, air.FileMode.READ);
-				text = fileStream.readUTFBytes(file.size);
-				fileStream.close();
-			}  catch (ex) { 
-				air.trace(ex); 
-				return ""; 
-			}
-			return text;
 		}, 
 		
 		read: function(file) { 
@@ -226,6 +212,20 @@
 			}
 			return true;
 		},
+		
+		text: function(file) {
+			
+			var fileStream = new air.FileStream(), text = "";
+			try {		
+				fileStream.open(file, air.FileMode.READ);
+				text = fileStream.readUTFBytes(file.size);
+				fileStream.close();
+			}  catch (ex) { 
+				air.trace(ex); 
+				return ""; 
+			}
+			return text;
+		}
 	}; 
 	
 	/*** jQuery.air.images - image utility ***/
@@ -1199,10 +1199,12 @@
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             },
             del: function(parms, onSuccess, onFailure){
-                if ($.isEmptyObject(parms) || !parms.id) { return; }
-                
-                var query = new $.air.query(this.connection), 
-					sql = "DELETE FROM " + this.name + " WHERE id = :id";
+				var query = new $.air.query(this.connection), 
+					sql = "DELETE FROM " + this.name;
+					
+				if (parms.id) {
+					sql = sql + " WHERE id = :id";
+				}
 				
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             }
@@ -1464,6 +1466,7 @@
 		
 		return {
 			init: function() {  
+				if(!this.events) { return; }
 				
 				for(var cat in this.events) { 
 					var tempCat = cat.toLowerCase();
@@ -1481,6 +1484,8 @@
 				} 
 			}, 
 			dispose: function() {
+				if(!this.events) { return; }
+				
 				$.each(this.events, $.proxy(function(type, eMap) { 
 					type = type.toLowerCase();
 					
@@ -1596,6 +1601,23 @@
 					effect.start(true);  
 				}
             },
+			
+			slideUp: function() {
+				alert("sliding up");
+				this.show();
+			},
+			slideDown: function() {
+				alert("sliding down");
+				this.show();
+			},
+			slideLeft: function() {
+				alert("sliding left");
+				this.show();
+			},
+			slideRight: function() {
+				alert("sliding right");
+				this.show();
+			},
 			
             dissolve: function(){ 
                 var effect = getDissolveEffect.call(this); 
@@ -1749,6 +1771,7 @@
 				delete this.staged[sender.key];
 				break; 
 				case "shown": 
+				sender.bringToFront();
 				this.stage.focus = sender.view.htmlLoader;
 				
 				this.context = sender;
@@ -1790,7 +1813,7 @@
 				  
 				for(var type in this.events) {  
 					$(this.eventBus).bind(type, $.proxy(onPresenterEvent, this)); 
-				}
+				} 
 			}, 
 			dispose: function() {
 				//todo: remove user idle listener (if necessary)
@@ -2026,8 +2049,8 @@
 				
 				//todo: application should manage all references to definition
 				//shell should exist for global event handling, state, etc
-				//e.g. this.models = this.def.models(); 
-
+				//e.g. this.models = this.def.models();  
+				
 				var Shell = this.def.shell();    
 				this.shell = new Shell(this.def);  
             }
