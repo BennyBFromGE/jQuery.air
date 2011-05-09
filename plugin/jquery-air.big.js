@@ -123,7 +123,8 @@
     /*** jQuery.air.htmlLoader - utility ***/ 
 	$.air.htmlLoader = {
 		create: function(config){
-			config =  $.extend({}, {  
+			config =  $.extend({}, {
+				filters: [],   
 				x: 20, y: 20,  
 				paintsDefaultBackground: false, 
 				visible: false,  
@@ -135,8 +136,12 @@
             loader.paintsDefaultBackground = config.paintsDefaultBackground;
             loader.visible = config.visible;
             
-            var filterFactory = new $.air.filterFactory();
-            loader.filters = [filterFactory.create("shadow").filter]; 
+			var filterFactory = new $.air.filterFactory(), filters = [];
+			$.each(config.filters, function(filterKey, filterConfig) {  
+				var filter = filterFactory.create(filterKey, filterConfig);
+				if(filter) { filters.push(filter.filter); }
+			}); 
+            loader.filters = filters; 
             
             return loader;
         },
@@ -302,9 +307,9 @@
 //				function onHTTPStatus() {} 
 //				function onProgress() {}
 				
-				function onIOError() { onFailure(); }
+				function onIOError(e) { alert(e); onFailure(); }
 				
-				function onSecurityError() { onFailure(); }
+				function onSecurityError() { alert("Security Error"); onFailure(); }
 				
 				function onComplete(e) {  
 					var loaded = e.target;
@@ -355,15 +360,155 @@
     $.air.filter.prototype = {};
     
     /* Custom filter */
+	$.air.blurFilter = function(config) { 
+		$.air.filter.call(this, config);
+
+		this.filter = new runtime.flash.filters.BlurFilter(this.config.blurX, this.config.blurY, this.config.quality);		
+	};
+    $.air.blurFilter.prototype = new $.air.filter();
+    $.air.blurFilter.prototype.constructor = $.air.blurFilter; 
+
     $.air.dropShadowFilter = function(config){
         $.air.filter.call(this, config);
 
-        this.filter = new runtime.flash.filters.DropShadowFilter(this.config.x, this.config.y);
-        this.filter.blurX = this.config.blurX;
-        this.filter.blurY = this.config.blurY;
+        this.filter = new runtime.flash.filters.DropShadowFilter(
+			this.config.distance, 
+			this.config.angle, 
+			this.config.color, 
+			this.config.alpha, 
+			this.config.blurX, 
+			this.config.blurY, 
+			this.config.strength, 
+			this.config.quality, 
+			this.config.inner, 
+			this.config.knockout, 
+			this.config.hideObject
+		);
+			
     };
     $.air.dropShadowFilter.prototype = new $.air.filter();
     $.air.dropShadowFilter.prototype.constructor = $.air.dropShadowFilter; 
+
+    $.air.glowFilter = function(config){
+        $.air.filter.call(this, config);
+
+        this.filter = new runtime.flash.filters.GlowFilter(
+			this.config.color, 
+			this.config.alpha, 
+			this.config.blurX, 
+			this.config.blurY, 
+			this.config.strength, 
+			this.config.quality, 
+			this.config.inner, 
+			this.config.knockout
+		);
+   	};
+    $.air.glowFilter.prototype = new $.air.filter();
+    $.air.glowFilter.prototype.constructor = $.air.glowFilter;  
+	
+    $.air.gradientGlowFilter = function(config){
+        $.air.filter.call(this, config);
+
+        this.filter = new runtime.flash.filters.GradientGlowFilter(
+			this.config.distance, 
+			this.config.angle, 
+			this.config.colors, 
+			this.config.alphas, 
+			this.config.ratios,   
+			this.config.blurX, 
+			this.config.blurY, 
+			this.config.strength, 
+			this.config.quality, 
+			this.config.type, 
+			this.config.knockout
+		);
+   	};
+    $.air.gradientGlowFilter.prototype = new $.air.filter();
+    $.air.gradientGlowFilter.prototype.constructor = $.air.gradientGlowFilter; 
+	
+    $.air.bevelFilter = function(config){
+        $.air.filter.call(this, config); 
+
+        this.filter = new runtime.flash.filters.BevelFilter(
+			this.config.distance, 
+			this.config.angle, 
+			this.config.highlightColor, 
+			this.config.highlightAlpha, 
+			this.config.shadowColor, 
+			this.config.shadowAlpha, 
+			this.config.blurX, 
+			this.config.blurY, 
+			this.config.strength, 
+			this.config.quality, 
+			this.config.type, 
+			this.config.knockout
+		);
+   	};
+    $.air.bevelFilter.prototype = new $.air.filter();
+    $.air.bevelFilter.prototype.constructor = $.air.bevelFilter; 
+	
+    $.air.gradientBevelFilter = function(config){
+        $.air.filter.call(this, config); 
+
+        this.filter = new runtime.flash.filters.GradientBevelFilter(
+			this.config.distance, 
+			this.config.angle, 
+			this.config.colors, 
+			this.config.alphas, 
+			this.config.ratios,   
+			this.config.blurX, 
+			this.config.blurY, 
+			this.config.strength, 
+			this.config.quality, 
+			this.config.type, 
+			this.config.knockout
+		);
+   	};
+    $.air.gradientBevelFilter.prototype = new $.air.filter();
+    $.air.gradientBevelFilter.prototype.constructor = $.air.gradientBevelFilter;
+	
+    $.air.colorMatrixFilter = function(config){
+        $.air.filter.call(this, config); 
+
+        this.filter = new runtime.flash.filters.ColorMatrixFilter(this.config.matrix);
+   	};
+    $.air.colorMatrixFilter.prototype = new $.air.filter();
+    $.air.colorMatrixFilter.prototype.constructor = $.air.colorMatrixFilter;
+	
+    $.air.convolutionFilter = function(config){
+        $.air.filter.call(this, config); 
+
+        this.filter = new runtime.flash.filters.ConvolutionFilter(
+			this.config.matrixX, 
+			this.config.matrixY, 
+			this.config.matrix, 
+			this.config.divisor, 
+			this.config.bias, 
+			this.config.preserveAlpha, 
+			this.config.clamp, 
+			this.config.color
+		);
+   	};
+    $.air.convolutionFilter.prototype = new $.air.filter();
+    $.air.convolutionFilter.prototype.constructor = $.air.convolutionFilter;
+	
+    $.air.diplacementMapFilter = function(config){
+        $.air.filter.call(this, config); 
+
+        this.filter = new runtime.flash.filters.DisplacementMapFilter(
+			this.config.mapBitmap, 
+			this.config.mapPoint, 
+			this.config.componentX, 
+			this.config.componentY, 
+			this.config.scaleX, 
+			this.config.scaleY, 
+			this.config.mode, 
+			this.config.color, 
+			this.config.alpha
+		);
+   	};
+    $.air.diplacementMapFilter.prototype = new $.air.filter();
+    $.air.diplacementMapFilter.prototype.constructor = $.air.diplacementMapFilter;
     
     /* Filter factory */
     $.air.filterFactory = function(){};
@@ -371,10 +516,40 @@
         create: function(type, config){
             type = type.toLowerCase();
             switch (type) {
+				case "blur":
+                return new $.air.blurFilter(config);
+				
                 case "dropshadow":
-                case "drop-shadow":
-                case "shadow":
-                    return new $.air.dropShadowFilter(config);
+                case "drop-shadow": 
+                return new $.air.dropShadowFilter(config);
+				
+				case "glow":
+                return new $.air.glowFilter(config); 
+				
+				case "bevel":
+                return new $.air.bevelFilter(config);  
+				
+				case "gradientglow":
+				case "gradient-glow":
+                return new $.air.gradientGlowFilter(config);  
+				
+				case "gradientbevel":
+				case "gradient-bevel":
+                return new $.air.gradientBevelFilter(config);    
+				
+				case "colormatrix":
+				case "color-matrix":
+                return new $.air.colorMatrixFilter(config);  
+				
+				case "convolution":
+                return new $.air.convolutionFilter(config);   
+			
+				case "displacementmap":	
+				case "displacement-map":		
+                return new $.air.displacementMapFilter(config);  
+					
+				default:
+				return;
             }
         }
     };
@@ -1146,14 +1321,30 @@
 				return filtered;
 			}, 
             get: function(parms, onSuccess, onFailure){ 
-				var query = new $.air.query(this.connection),  sql = "SELECT * FROM " + this.name;
+				var query = new $.air.query(this.connection), 
+					top = parms.top ? " TOP " + parms.top + " " : "",  
+					sql = "SELECT " + top + "* FROM " + this.name;
 					
                 if (!$.isEmptyObject(parms)) {
 					parms = this.filterParms(parms);
 					
                     var clauses = [];
 					$.each(parms, function(key, value) {  
-						clauses.push(key + "= :" + key);
+						switch(key) {
+							case "top":
+							//skip
+							break;
+							case "where":
+							//todo: complex clause obj
+							var cClauses = [];
+							
+							if(value.length) {  } else { cClauses.push(value); }
+							break;
+							
+							default:
+							clauses.push(key + "= :" + key);
+							break;
+						}
 					});
                     
                     sql += " WHERE " + clauses.join(" AND ");
@@ -1955,6 +2146,7 @@
 							var val = viewProto[prop];
 							
 							switch (prop) {
+								case "filters":
 								case "path":
 								case "x":
 								case "y":
