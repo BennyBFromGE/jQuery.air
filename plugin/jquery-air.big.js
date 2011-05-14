@@ -124,7 +124,7 @@
 	$.air.htmlLoader = {
 		create: function(config){
 			config =  $.extend({}, {
-				filters: [],   
+				filters: {},   
 				x: 20, y: 20,  
 				paintsDefaultBackground: false, 
 				visible: false,  
@@ -137,9 +137,9 @@
             loader.visible = config.visible;
             
 			var filterFactory = new $.air.filterFactory(), filters = [];
-			$.each(config.filters, function(filterKey, filterConfig) {  
-				var filter = filterFactory.create(filterKey, filterConfig);
-				if(filter) { filters.push(filter.filter); }
+			$.each(config.filters, function(filterKey, filterConfig) {   
+				var filter = filterFactory.create(filterKey, filterConfig); 
+				if(filter) { filters.push(filter); }
 			}); 
             loader.filters = filters; 
             
@@ -341,216 +341,153 @@
 	/*** 
 	 * jQuery.air filters 
 	 * 
-	 * jQuery.air.filter
-	 * jQuery.air.dropShadowFilter
 	 * jQuery.air.filterFactory
 	 * 
 	 ***/ 
-    /* Abstract filter */
-    $.air.filter = function(config){
-        this.config = $.extend({}, {
-            x: 0,
-            y: 0,
-            blurX: 20,
-            blurY: 20
-        }, config || {});
-        
-        this.filter = null; 
-    };
-    $.air.filter.prototype = {};
-    
-    /* Custom filter */
-	$.air.blurFilter = function(config) { 
-		$.air.filter.call(this, config);
-
-		this.filter = new runtime.flash.filters.BlurFilter(this.config.blurX, this.config.blurY, this.config.quality);		
-	};
-    $.air.blurFilter.prototype = new $.air.filter();
-    $.air.blurFilter.prototype.constructor = $.air.blurFilter; 
-
-    $.air.dropShadowFilter = function(config){
-        $.air.filter.call(this, config);
-
-        this.filter = new runtime.flash.filters.DropShadowFilter(
-			this.config.distance, 
-			this.config.angle, 
-			this.config.color, 
-			this.config.alpha, 
-			this.config.blurX, 
-			this.config.blurY, 
-			this.config.strength, 
-			this.config.quality, 
-			this.config.inner, 
-			this.config.knockout, 
-			this.config.hideObject
-		);
-			
-    };
-    $.air.dropShadowFilter.prototype = new $.air.filter();
-    $.air.dropShadowFilter.prototype.constructor = $.air.dropShadowFilter; 
-
-    $.air.glowFilter = function(config){
-        $.air.filter.call(this, config);
-
-        this.filter = new runtime.flash.filters.GlowFilter(
-			this.config.color, 
-			this.config.alpha, 
-			this.config.blurX, 
-			this.config.blurY, 
-			this.config.strength, 
-			this.config.quality, 
-			this.config.inner, 
-			this.config.knockout
-		);
-   	};
-    $.air.glowFilter.prototype = new $.air.filter();
-    $.air.glowFilter.prototype.constructor = $.air.glowFilter;  
-	
-    $.air.gradientGlowFilter = function(config){
-        $.air.filter.call(this, config);
-
-        this.filter = new runtime.flash.filters.GradientGlowFilter(
-			this.config.distance, 
-			this.config.angle, 
-			this.config.colors, 
-			this.config.alphas, 
-			this.config.ratios,   
-			this.config.blurX, 
-			this.config.blurY, 
-			this.config.strength, 
-			this.config.quality, 
-			this.config.type, 
-			this.config.knockout
-		);
-   	};
-    $.air.gradientGlowFilter.prototype = new $.air.filter();
-    $.air.gradientGlowFilter.prototype.constructor = $.air.gradientGlowFilter; 
-	
-    $.air.bevelFilter = function(config){
-        $.air.filter.call(this, config); 
-
-        this.filter = new runtime.flash.filters.BevelFilter(
-			this.config.distance, 
-			this.config.angle, 
-			this.config.highlightColor, 
-			this.config.highlightAlpha, 
-			this.config.shadowColor, 
-			this.config.shadowAlpha, 
-			this.config.blurX, 
-			this.config.blurY, 
-			this.config.strength, 
-			this.config.quality, 
-			this.config.type, 
-			this.config.knockout
-		);
-   	};
-    $.air.bevelFilter.prototype = new $.air.filter();
-    $.air.bevelFilter.prototype.constructor = $.air.bevelFilter; 
-	
-    $.air.gradientBevelFilter = function(config){
-        $.air.filter.call(this, config); 
-
-        this.filter = new runtime.flash.filters.GradientBevelFilter(
-			this.config.distance, 
-			this.config.angle, 
-			this.config.colors, 
-			this.config.alphas, 
-			this.config.ratios,   
-			this.config.blurX, 
-			this.config.blurY, 
-			this.config.strength, 
-			this.config.quality, 
-			this.config.type, 
-			this.config.knockout
-		);
-   	};
-    $.air.gradientBevelFilter.prototype = new $.air.filter();
-    $.air.gradientBevelFilter.prototype.constructor = $.air.gradientBevelFilter;
-	
-    $.air.colorMatrixFilter = function(config){
-        $.air.filter.call(this, config); 
-
-        this.filter = new runtime.flash.filters.ColorMatrixFilter(this.config.matrix);
-   	};
-    $.air.colorMatrixFilter.prototype = new $.air.filter();
-    $.air.colorMatrixFilter.prototype.constructor = $.air.colorMatrixFilter;
-	
-    $.air.convolutionFilter = function(config){
-        $.air.filter.call(this, config); 
-
-        this.filter = new runtime.flash.filters.ConvolutionFilter(
-			this.config.matrixX, 
-			this.config.matrixY, 
-			this.config.matrix, 
-			this.config.divisor, 
-			this.config.bias, 
-			this.config.preserveAlpha, 
-			this.config.clamp, 
-			this.config.color
-		);
-   	};
-    $.air.convolutionFilter.prototype = new $.air.filter();
-    $.air.convolutionFilter.prototype.constructor = $.air.convolutionFilter;
-	
-    $.air.diplacementMapFilter = function(config){
-        $.air.filter.call(this, config); 
-
-        this.filter = new runtime.flash.filters.DisplacementMapFilter(
-			this.config.mapBitmap, 
-			this.config.mapPoint, 
-			this.config.componentX, 
-			this.config.componentY, 
-			this.config.scaleX, 
-			this.config.scaleY, 
-			this.config.mode, 
-			this.config.color, 
-			this.config.alpha
-		);
-   	};
-    $.air.diplacementMapFilter.prototype = new $.air.filter();
-    $.air.diplacementMapFilter.prototype.constructor = $.air.diplacementMapFilter;
     
     /* Filter factory */
     $.air.filterFactory = function(){};
     $.air.filterFactory.prototype = {
         create: function(type, config){
-            type = type.toLowerCase();
+			type = type.toLowerCase();
+			config = $.extend({}, { 
+					blurX: 20,
+					blurY: 20
+				}, config || {});
+
+			var filter;
             switch (type) {
 				case "blur":
-                return new $.air.blurFilter(config);
+//				var blurConfig = { 
+//					quality: null
+//				};
+				filter = new runtime.flash.filters.BlurFilter();
+                break;
 				
                 case "dropshadow":
                 case "drop-shadow": 
-                return new $.air.dropShadowFilter(config);
+//				var dropShadowConfig = { 
+//					distance: null, 
+//					angle: null,
+//					color: null,
+//					alpha: null,
+//					strength: null, 
+//					quality: null, 
+//					inner: null, 
+//					knockout: null,
+//					hideObject: null
+//				};
+		
+        		filter = new runtime.flash.filters.DropShadowFilter();
+				break;
 				
 				case "glow":
-                return new $.air.glowFilter(config); 
+//				var glowConfig = {
+//					color: null, 
+//					alpha: null,
+//					strength: null,  
+//					quality: null,  
+//					inner: null,  
+//					knockout: null
+//				};
+        		filter = new runtime.flash.filters.GlowFilter();
+				break;
 				
 				case "bevel":
-                return new $.air.bevelFilter(config);  
-				
+//				var bevelConfig = { 
+//					distance:null,  
+//					angle:null,  
+//					highlightColor:null,  
+//					highlightAlpha:null,  
+//					shadowColor:null,  
+//					shadowAlpha:null,   
+//					strength:null,  
+//					quality:null,  
+//					type:null,  
+//					knockout: null
+//				};
+        		filter = new runtime.flash.filters.BevelFilter();
+                break;
 				case "gradientglow":
 				case "gradient-glow":
-                return new $.air.gradientGlowFilter(config);  
+//				var gradientGlowConfig = { 
+//					distance:null,  
+//					angle:null,  
+//					colors:null,  
+//					alphas:null,  
+//					ratios:null,     
+//					strength:null,  
+//					quality:null,  
+//					type:null,  
+//					knockout: null
+//				};
+				
+        		filter = new runtime.flash.filters.GradientGlowFilter();
+                break;
 				
 				case "gradientbevel":
 				case "gradient-bevel":
-                return new $.air.gradientBevelFilter(config);    
-				
+//				var gradientBevelConfig = {
+//					distance:null,  
+//					angle:null,  
+//					colors:null,  
+//					alphas:null,  
+//					ratios:null,    
+//					strength:null,  
+//					quality:null,  
+//					type:null,  
+//					knockout: null
+//				};
+				filter = new runtime.flash.filters.GradientBevelFilter();
+				break;
+						
 				case "colormatrix":
 				case "color-matrix":
-                return new $.air.colorMatrixFilter(config);  
+//				var colorMatrixConfig = { matrix: null };
+				filter = new runtime.flash.filters.ColorMatrixFilter(this.config.matrix);
+                break;
 				
-				case "convolution":
-                return new $.air.convolutionFilter(config);   
+				case "convolution": 
+//				var convolutionConfig = { 
+//					matrixX:null,  
+//					matrixY:null,  
+//					matrix:null,  
+//					divisor:null,  
+//					bias:null,  
+//					preserveAlpha:null,  
+//					clamp:null,  
+//					color: null
+//				};
+        		filter = new runtime.flash.filters.ConvolutionFilter();
+				break;
 			
 				case "displacementmap":	
 				case "displacement-map":		
-                return new $.air.displacementMapFilter(config);  
+//				var displacementMapConfig = {
+//					mapBitmap: null,
+//					mapPoint: null,
+//					componentX: null,
+//					componentY: null,
+//					scaleX: null,
+//					scaleY: null,
+//					mode: null,
+//					color: null,
+//					alpha: null
+//				};
+				
+        		filter = new runtime.flash.filters.DisplacementMapFilter();
+				break;
 					
 				default:
 				return;
             }
+			
+			$.each(config, function(key, value) {
+				if(!value) { return; }
+				filter[key] = value;
+			});
+			
+			return filter;
         }
     };
     
@@ -1164,6 +1101,7 @@
         //Private methods
         function setParm(key, value){ 
 			if (!$.isFunction(value)) {
+				air.trace(key + ": " + value);
 				this.statement.parameters[":" + key] = value;
 			}
         }
@@ -1186,13 +1124,14 @@
 			removeListeners.call(this);
 		}
         function onError(error){  
+			air.trace(error);
             $(this).trigger("error", [error]);
             
 			removeListeners.call(this);
 		}
         
         return { 
-            execute: function(sql, parms) {
+            execute: function(sql, parms) { 
 		        this.statement = new air.SQLStatement();
 		        this.statement.sqlConnection = this.connection;
                 this.statement.text = sql;
@@ -1229,13 +1168,14 @@
 					"number" : "integer", 
 					"key" : "integer", 
 	  				"float" : "float",
-					"bool" : "boolean", 
-	  				"boolean" : "boolean",
+					"bool" : "integer", 
+	  				"boolean" : "integer",
 					"clob" : "clob",
 	  				"blob" : "blob",
 					"file" : "blob", 
 					"image" : "blob", 
-	  				"timestamp" : "timestamp",
+	  				"datetime" : "datetime",
+	  				"timestamp" : "datetime",
 					"vc" : "varying character",
 					"varying character" : "varying character",
 	  				"nvc" : "national varying character", 
@@ -1249,7 +1189,7 @@
 				case "key":
 				column.primaryKey = true
 				column.autoIncrement = true;
-				break;
+				break; 
 			}
 		
 			return column;
@@ -1274,6 +1214,8 @@
 				}
             	$(query).bind("failure", onFailure);
             }
+			
+			air.trace(sql);
 
             query.execute(sql, parms);
         };
@@ -1289,15 +1231,11 @@
                     var column = createColumn(columns[columnName]),
 						columnDefinition = columnName + " " + column.type;
 						
-                    if (column.size) {
-                        columnDefinition += "(" + column.size + ")";
-                    }
-                    if (column.primaryKey === true) {
-                        columnDefinition += " PRIMARY KEY ";
-                    }
-                    if (column.autoIncrement === true) {
-                        columnDefinition += " AUTOINCREMENT ";
-                    }
+                    if (column.size) { columnDefinition += "(" + column.size + ")"; }
+                    if (column.primaryKey === true) { columnDefinition += " PRIMARY KEY "; }
+                    if (column.autoIncrement === true) { columnDefinition += " AUTOINCREMENT "; }
+					
+					if(column.defaultValue) { columnDefinition += " DEFAULT " + column.defaultValue }
 					
                     columnDefinitions.push(columnDefinition); 
 					
@@ -1321,24 +1259,26 @@
 				return filtered;
 			}, 
             get: function(parms, onSuccess, onFailure){ 
-				var query = new $.air.query(this.connection), 
-					top = parms.top ? " TOP " + parms.top + " " : "",  
-					sql = "SELECT " + top + "* FROM " + this.name;
+				var query = new $.air.query(this.connection),
+					sql = "SELECT * FROM " + this.name, 
+					orderBy = parms.orderBy ? " ORDER BY " + parms.orderBy : "", 
+					limit = parms.limit ? " LIMIT " + parms.limit : "";
+					
+				delete parms["orderBy"];
+				delete parms["limit"];
 					
                 if (!$.isEmptyObject(parms)) {
 					parms = this.filterParms(parms);
 					
                     var clauses = [];
 					$.each(parms, function(key, value) {  
-						switch(key) {
-							case "top":
-							//skip
-							break;
+						switch(key) {  
 							case "where":
-							//todo: complex clause obj
-							var cClauses = [];
-							
-							if(value.length) {  } else { cClauses.push(value); }
+							if($.isArray(value)) {
+								$.each(value, function(i, clause) { clauses.push(clause); });
+							} else {
+								clauses.push(value);
+							}
 							break;
 							
 							default:
@@ -1349,7 +1289,11 @@
                     
                     sql += " WHERE " + clauses.join(" AND ");
                 } 
-				
+				sql += orderBy;
+				sql += limit;
+								
+				air.trace(sql);
+								
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             },
             set: function(parms, onSuccess, onFailure){ 
@@ -1367,11 +1311,12 @@
 					delete parms["id"];
                     var columns = [], values = [];
 					$.each(parms, function(key, value) { 
-						if($.isFunction(value)) { return; }
+						if($.isFunction(value)) { return; } 
 
 						columns.push(key);
 						values.push(":" + key); 
-					}) 
+					});
+					
                     sql += "(" + columns.join(",") + ") VALUES (" + values.join(",") + ")"; 
                 }
                 else {
@@ -1386,6 +1331,8 @@
                     
                     sql += columns.join(",") + " WHERE id = :id"; 
                 } 
+				
+				alert(sql);
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             },
@@ -1544,6 +1491,7 @@
 					var val = this[key];
 					if ($.isFunction(val)) continue;
 					
+					if(val.defaultValue) continue; 
 					obj[key] = (props && props[key]) ? props[key] : this.getDefaultPropertyValue(val.type);
 				} 
 
@@ -1556,7 +1504,11 @@
 	                case "int":
 	                case "integer":
 	                case "long":
+					case "bool":
+					case "boolean":
 	                    return 0;
+					case "float":
+					return 0.0; 
 	                default:
 	                    return "";
 	            }
@@ -1775,8 +1727,8 @@
 				}, this));
 				effect.start(reversed);
             }, 
-            flipY: function(reversed){
-                var effect = getSingleFlipYEffect.call(this);  
+            flipY: function(reversed, config){
+                var effect = getSingleFlipYEffect.call(this, config);  
                 effect.start(!reversed); 
             }, 
 
@@ -1792,23 +1744,6 @@
 					effect.start(true);  
 				}
             },
-			
-			slideUp: function() {
-				alert("sliding up");
-				this.show();
-			},
-			slideDown: function() {
-				alert("sliding down");
-				this.show();
-			},
-			slideLeft: function() {
-				alert("sliding left");
-				this.show();
-			},
-			slideRight: function() {
-				alert("sliding right");
-				this.show();
-			},
 			
             dissolve: function(){ 
                 var effect = getDissolveEffect.call(this); 
