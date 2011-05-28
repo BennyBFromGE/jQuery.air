@@ -265,28 +265,192 @@
 	}; 
 	
 	/*** jQuery.air.clipboard - clipboard utilitiy ***/
-	$.air.clipboard = (function() {
-		var clipboard = air.Clipboard.generalClipboard;
+	$.air.clipboard = function() {
+		this._native = air.Clipboard.generalClipboard;
+	};
+	$.air.clipboard.prototype = { 
+		hasData: function(format) {
+			return this._native.hasFormat(format);
+		},
+		setData: function(format, data) {
+			this._native.setData(format, data);
+		},
+		setDataHandler: function(format, fn) {
+			this._native.setDataHandler(format, fn);
+		},
+		getData: function(format, transferMode) {
+			this._native.getData(format, transferMode);
+		},
+		clearData: function(format) {
+			this._native.clearData(format);
+		},
+		clear: function() {
+			this._native.clear();
+		}
+	};
+	
+	/*** jQuery.air.systemMenu ***/
+	$.air.systemMenu = function() {
+		this._native = null;
 		
-		return { 
-	        hasData: function(format) {
-	            return clipboard.hasFormat(format);
-	        }, 
-	        setData: function(format, data) {
-	            clipboard.setData(format, data);
-	        }, 
-	        setDataHandler: function(format, fn) {
-	            clipboard.setDataHandler(format, fn);
-	        }, 
-	        getData: function(format, transferMode) {
-	            clipboard.getData(format, transferMode);
-	        }, 
-	        clear: function() {
-	            clipboard.clear();
-	        }, 
-	        clearData: function(format) {
-	            clipboard.clearData(format);
+		if(air.NativeWindow.supportsMenu) {
+			if(nativeWindow.systemChrome != air.NativeWindowSystemChrome.NONE) { 
+				this._native = new air.NativeMenu();
+				nativeWindow.menu = this._native;
+			} else {
+				this._native = air.NativeApplication.nativeApplication.menu;
+			}
+		}
+	};
+	$.air.systemMenu.prototype = (function() { 
+
+	    function find(text){
+			var menu = this._native;
+			if(!menu) { return null; }
+			if(!menu.items) { return null; }
+			
+	        for(var i = 0, len = menu.items.length; i < len; i++){
+	            if(menu.items[i]['label'] == text) {
+	                return menu.items[i];
+	            }
 	        }
+	        return null;
+	    }
+
+
+		return {
+			add: function(options) { //text, actions, mindex){
+				var config = $.extend({}, {
+						text: "",
+						mnemonicIndex: 0, 
+						actions: []
+					}, options || {})
+					text = config.text,
+					mnemonicIndex = 0, 
+					actions = config.actions, 
+					item = find(text);
+
+	            if(!item){
+	                item = this._native.addItem(new air.NativeMenuItem(text));
+	                item.mnemonicIndex = mnemonicIndex; 
+	                item.submenu = new air.NativeMenu();
+				}
+				
+				$.each(actions, function(i, action) {
+					
+					var actionConfig = $.extend({}, {
+							isSeparator: false,
+							text: "", 	
+							callback: function() {}
+						}, action || {}),
+						menuItem = !actionConfig.isSeparator ? new air.NativeMenuItem(actionConfig.text) : new air.NativeMenuItem("", true);
+					menuItem.addEventListener(air.Event.SELECT, actionConfig.callback); 
+					
+					item.submenu.addItem(menuItem);
+				}); 
+				
+	            return item.submenu;
+	        }
+		};
+	})();
+
+	/*** jQuery.air.systemTray ***/
+	$.air.systemTray = function() {
+		this.app = air.NativeApplication.nativeApplication;
+		this.isWindows = false;
+		this.icon = null;
+		this.iconBitmaps = [];
+		
+		//windows
+		if(air.NativeApplication.supportsSystemTrayIcon) {
+            this.isWindows = true;
+            this.icon = this.app.icon;
+        }
+    
+		// mac
+        if(air.NativeApplication.supportsDockIcon) {
+            this.icon = this.app.icon;
+        }
+	};
+	$.air.systemTray.prototype = (function() {
+		
+		return {
+			setIcon: function(icon, tooltip, initWithIcon) {
+				if(!this.icon){ return; }
+				
+				var self = this, loader = new air.Loader();
+				loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, function(e){
+					var bitmaps = new runtime.Array(e.target.content.bitmapData);
+					self.iconBitmaps = bitmaps;
+					if (initWithIcon) {
+						self.icon.bitmaps = bitmaps;
+					}
+				});
+				loader.load(new air.URLRequest(icon));
+				if(tooltip && air.NativeApplication.supportsSystemTrayIcon) {
+					this.app.icon.tooltip = tooltip;
+				}
+			},
+			hideIcon : function(){
+				if(!this.icon){ return; }
+				
+				this.icon.bitmaps = [];
+			},
+
+			showIcon : function(){
+				if(!this.icon){ return; }
+				
+				this.icon.bitmaps =  this.iconBitmaps;
+			},
+			
+			bounceIcon: function(priority) {
+				if(!this.icon){ return; }
+				
+				this.icon.bounce(priority);
+			}, 
+
+			setMenu: function(options) { //actions, _parentMenu){
+				if(!this.icon){ return; }
+				
+				var config = $.extend({}, {
+						actions: []
+					}, options || {}), 
+					actions = config.actions,
+					menu = new air.NativeMenu();
+
+				$.each(actions, function(i, action) {
+					
+					var actionConfig = $.extend({}, {
+							isSeparator: false,
+							text: "", 	
+							callback: function() {}
+						}, action || {});
+						
+//						
+//						menuItem = !actionConfig.isSeparator ? menu.addItem(actionConfig.text) : new air.NativeMenuItem("", true);
+//					menuItem.addEventListener(air.Event.SELECT, actionConfig.callback); 
+//					
+//					item.submenu.addItem(menuItem);
+				}); 
+//				
+//				for (var i = 0, len = actions.length; i < len; i++) {
+//					var a = actions[i];
+//					if(a == '-'){
+//						menu.addItem(new air.NativeMenuItem("", true));
+//					}else{
+//						var item = menu.addItem(Ext.air.MenuItem(a));
+//						if(a.menu || (a.initialConfig && a.initialConfig.menu)){
+//							item.submenu = Ext.air.SystemTray.setMenu(a.menu || a.initialConfig.menu, menu);
+//						}
+//					}
+//					
+//					if(!_parentMenu){
+//						icon.menu = menu;
+//					}
+//				}
+				
+				return menu;
+			}
 		};
 	})();
 
@@ -1252,6 +1416,7 @@
 				var tableColumns = this.columns, filtered = {};
 				
 				$.each(parms, function(key, value) { 
+					air.trace(key); air.trace(tableColumns[key]);
 					if(!tableColumns[key]) { return; }
 					filtered[key] = value; 
 				}); 
@@ -1330,9 +1495,7 @@
 					});
                     
                     sql += columns.join(",") + " WHERE id = :id"; 
-                } 
-				
-				alert(sql);
+                }  
 
 				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
             },
@@ -1604,6 +1767,8 @@
         };
 		
 		function parseSelector(selector) {
+			if(selector === "window") { return this.view.htmlLoader.window; }
+			else if(selector === "document") { return this.view.htmlLoader.window.document; }
 			return selector;  
 		};
 		
@@ -1620,7 +1785,7 @@
 						default:
 						for(var selector in this.events[cat]) {
 							var callback = this.events[cat][selector]; 
-							this.view.$(parseSelector(selector)).bind(tempCat, $.proxy(callback, this));
+							this.view.$(parseSelector.call(this, selector)).live(tempCat, $.proxy(callback, this)); //.bind(tempCat, $.proxy(callback, this));
 						}
 						break;
 					}
@@ -1637,7 +1802,7 @@
 						break;
 						default:
 						$.each(eMap, $.proxy(function(selector, callback) { 
-							this.view.$(parseSelector(selector)).unbind(type, $.proxy(callback, this));
+							this.view.$(parseSelector.call(this, selector)).die(type); //.unbind(type, $.proxy(callback, this));
 						}, this));
 						break;
 					}
@@ -1647,7 +1812,8 @@
 			go: function() {}, //Default is empty - expected to be specified in presenter proto  
 			
 			handleKeyDown: function(e) { 
-				var keydownEvents = this.events["keydown"]; 
+				var events = this.events || {}, 
+					keydownEvents = events["keydown"]; 
 				if(!keydownEvents) { return; }
 				
 				var handled = false, defCallback = keydownEvents["def"];
@@ -1845,7 +2011,10 @@
 		this.history = []; 
 		this.staged = {};
 
-		this.fxCache = new $.air.fxCache();
+		this.systemTray = new $.air.systemTray();
+		this.sytemMenu = new $.air.systemMenu(); 
+		this.clipboard = new $.air.clipboard(); 
+		this.fxCache = new $.air.fxCache(); 
 		
 		this.eventBus = {};
 		this.events = $.extend({}, {
@@ -1999,9 +2168,10 @@
 			present: function(key, dependencies){
 				var presenter = this.presenters(key, dependencies);
 				presenter.go();
+
 				
 				var breadCrumb = { from: this.context ? this.context.key : "start", to: presenter.key };
-				this.history.push(breadCrumb);
+				this.history.push(breadCrumb); 
 				
 				if (!this.context) { 
 					presenter.show();
@@ -2156,7 +2326,6 @@
 		};
 	})();
 	
-    
     /* application */
     $.air.application = function(partial){ 
 		this.def = new $.air.appDefinition(partial);
@@ -2171,12 +2340,8 @@
         return { 
             //Initialization - events added/disposed
             toString: function(){ return "$.air.application"; },
-            init: function(){  
-                //custom fx loading?    
-				
-				//todo: application should manage all references to definition
-				//shell should exist for global event handling, state, etc
-				//e.g. this.models = this.def.models();  
+            init: function() {  
+                //custom fx loading?     
 				
 				var Shell = this.def.shell();    
 				this.shell = new Shell(this.def);  
