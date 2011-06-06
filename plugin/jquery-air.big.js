@@ -8,16 +8,16 @@
         var BYTE_LENGTH = 32;
         
         function random(){
-            var value = air.EncryptedLocalStore.getItem(ELS_RGN_ITEM_NAME);
+            var i, value = air.EncryptedLocalStore.getItem(ELS_RGN_ITEM_NAME);
             
-            if (value == null) {
+            if (value === null) {
                 //		This is the first Key generation and no RN was stored in ELS
                 //		Generate a new RN with the flash RNG 
                 
                 value = new air.ByteArray();
                 value.length = BYTE_LENGTH; //32 bytes 
-                for (var i = 0; i < BYTE_LENGTH; i++) {
-                    value[i] = runtime.Math.floor(runtime.Math.random() * 256);
+                for (i = 0; i < BYTE_LENGTH; i++) {
+                    value[i] = Math.floor(Math.random() * 256);
                 }
                 
                 //	Step 5: Store the random number from step one in ELS
@@ -26,11 +26,11 @@
             }
             else {
                 //	 Getting the RN from ELS to generate the first key as the first time
-                runtime.trace("Got RN from ELS");
+                air.trace("Got RN from ELS");
             }
             
             return value;
-        };
+        }
         
         function concat(value){
             var concatVal = new air.ByteArray();
@@ -122,13 +122,13 @@
 	
     /*** jQuery.air.htmlLoader - utility ***/ 
 	$.air.htmlLoader = {
-		create: function(config){
+		create: function(config) { 
 			config =  $.extend({}, {
 				filters: {},   
 				x: 20, y: 20,  
 				paintsDefaultBackground: false, 
 				visible: false,  
-			}, config || {}); 
+			}, config || {});  
 	
             var loader = new air.HTMLLoader();
             loader.x = config.x;
@@ -155,25 +155,6 @@
 			return new air.Bitmap(data);
 		}
 	}; 
-	
-    /*** jQuery.air.window - window utility ***/ 
-	$.air.window = {
-		create: function(config) { 
-			config =  $.extend({}, {  
-				maximizable: false, 
-				minimizable: false,  
-				resizable: false, 
-				transparent: true, 
-				systemChrome: "none", 
-				type: air.NativeWindowType.UTILITY
-			}, config || {}); 
-
-			var nativeOptions = new air.NativeWindowInitOptions();   
-			$.each(config, function(key, val) { nativeOptions[key] = val; });
-
-			return air.HTMLLoader.createRootWindow(false, nativeOptions, false);
-		}
-	};
 	
 	/*** jQuery.air.files - file utility ***/
 	$.air.files = { 
@@ -355,7 +336,14 @@
 	})();
 
 	/*** jQuery.air.systemTray ***/
-	$.air.systemTray = function() {
+	$.air.systemTray = function(config) {
+		this.config = $.extend({}, {
+			icon: null, 
+			iconBitmaps: [], 
+			tooltip: "", 
+			menu: []
+		}, config || {});
+		
 		this.app = air.NativeApplication.nativeApplication;
 		this.isWindows = false;
 		this.icon = null;
@@ -371,85 +359,296 @@
         if(air.NativeApplication.supportsDockIcon) {
             this.icon = this.app.icon;
         }
+		
+		this.init();
 	};
 	$.air.systemTray.prototype = (function() {
 		
+		function onIconClick() {
+			this.trigger("activate");
+		};
+		
 		return {
-			setIcon: function(icon, tooltip, initWithIcon) {
-				if(!this.icon){ return; }
+			init: function() {
+				if(!this.config.icon) { return; } 
 				
-				var self = this, loader = new air.Loader();
+				var self = this, config = self.config, loader = new air.Loader(), menu = new air.NativeMenu();
 				loader.contentLoaderInfo.addEventListener(air.Event.COMPLETE, function(e){
 					var bitmaps = new runtime.Array(e.target.content.bitmapData);
-					self.iconBitmaps = bitmaps;
-					if (initWithIcon) {
-						self.icon.bitmaps = bitmaps;
-					}
+					self.iconBitmaps = bitmaps; 
 				});
-				loader.load(new air.URLRequest(icon));
-				if(tooltip && air.NativeApplication.supportsSystemTrayIcon) {
-					this.app.icon.tooltip = tooltip;
-				}
-			},
+				loader.load(new air.URLRequest(config.icon));
+				if(config.tooltip && $.air.supportsSystemTrayIcon) {
+					this.app.icon.tooltip = config.tooltip;
+				} 
+				
+				$.each(config.menu, function(i, item) { 
+					var itemConfig = $.extend({}, {
+							isSeparator: false,
+							text: "", 	
+							events: {}
+						}, item || {}), 
+						isSeparator = itemConfig.isSeparator, 
+						menuItem = isSeparator ? new air.NativeMenuItem("", true) : new air.NativeMenuItem(itemConfig.text);
+					
+					menu.addItem(menuItem);
+					if(!isSeparator) {
+						$.each(itemConfig.events, function(key, callback) {
+							key = key.toLowerCase();
+							switch(key) {
+								case "click":
+								case "select":
+								menuItem.addEventListener(air.Event.SELECT, $.proxy(callback, self));	
+								break;
+							}
+						});					
+					} 
+	
+					self.icon.menu = menu; 
+				});   
+				
+				self.icon.addEventListener("click", $.proxy(onIconClick, this));  
+			}, 
+			
+			trigger: function(event, args) {
+				$(this).trigger(event, [this, args]);
+			}, 
+			
 			hideIcon : function(){
 				if(!this.icon){ return; }
 				
 				this.icon.bitmaps = [];
 			},
-
 			showIcon : function(){
 				if(!this.icon){ return; }
 				
 				this.icon.bitmaps =  this.iconBitmaps;
 			},
-			
 			bounceIcon: function(priority) {
 				if(!this.icon){ return; }
 				
 				this.icon.bounce(priority);
+			}
+		};
+	})();
+  
+    /*** jQuery.air.window ***/
+	$.air.supportsDockIcon = air.NativeApplication.supportsDockIcon;
+	$.air.supportsSystemTrayIcon = air.NativeApplication.supportsSystemTrayIcon;
+	$.air.systemWindow = function(config) {
+		this.config = $.extend({}, {
+			isNative: false, 
+			transparent: false,
+			chrome: "standard", 
+			type: "normal", 
+			align: "", 
+			x: 0,
+			y: 0,
+			width: 600,
+			height: 400,
+			visible: false,
+			alwaysInFront: false,  
+			resizable: true, 
+			minimizable: false,
+			minimizeToTray: false, 
+			html: "", 
+			tray: { 
+				icon: "", 
+				tooltip: "", 
+				menu: []
+			}
+		}, config || {});
+		
+		this.instance = null;
+				
+		this.trayed = false;
+		this.systemTray = null; 
+		
+		this.init();
+	};
+	$.air.systemWindow.prototype = (function() {
+		
+		
+		//Native window events
+		function onDisplayStateChanging(e) { 
+			switch(e.afterDisplayState) {
+				case "minimized":
+				e.preventDefault();
+				this.hide();
+				this.systemTray.showIcon();
+				this.trayed = true; 
+				break;
+			}
+		};
+
+		return {
+			
+			init: function() { 
+				var config = this.config;
+				
+				this.instance = config.isNative ? window.nativeWindow : null;  
+			
+				if (!this.instance) {
+					var nativeOptions = new air.NativeWindowInitOptions();
+					nativeOptions.systemChrome = config.chrome;
+					nativeOptions.type = config.type;
+					nativeOptions.resizable = config.resizable;
+					nativeOptions.minimizable = config.minimizable;
+					nativeOptions.maximizable = config.maximizable;
+					nativeOptions.transparent = config.transparent; 
+
+//					var loader = air.HTMLLoader.createRootWindow(false, nativeOptions, false);
+//					if (config.file) {
+//						loader.load(new air.URLRequest(config.file));
+//					}
+//					else {
+//						loader.loadString(config.html || "");
+//					} 
+
+//					this.instance = loader.window.nativeWindow;
+					this.instance = new air.NativeWindow(nativeOptions);
+				} 
+		
+				var win = this.instance,
+					alwaysInFront = config.alwaysInFront,   
+					visible = config.visible, 
+					width = Math.max(config.width, 100),
+					height = Math.max(config.height, 100),
+					align = config.align.toLowerCase(), 
+					bounds = air.Screen.mainScreen.visibleBounds,
+					centerX = bounds.x + ((bounds.width/2)-(width/2)),
+					centerY = bounds.y + ((bounds.height/2)-(height/2)),
+					x = config.x || 0,
+					y = config.y || 0;
+				
+				win.alwaysInFront = alwaysInFront;
+				win.visible = visible;
+				win.width = width;
+				win.height = height; 
+				
+				
+				switch(align) {
+					case "tl":
+					x = 0; 
+					y = 0;
+					break;
+					case "tr":
+					x = bounds.width - width; 
+					y = 0;
+					break;
+					case "bl":
+					x = 0; 
+					y = bounds.height - height;
+					break;
+					case "br":
+					x = bounds.width - width; 
+					y = bounds.height - height;
+					break;
+				}
+				win.x = x;
+				win.y = y;
+				
+				win.stage.scaleMode = window.runtime.flash.display.StageScaleMode.NO_SCALE; 
+				win.stage.align = window.runtime.flash.display.StageAlign.TOP_LEFT; 
+				
+				//todo: easy positioning top/left/bottom/right
+		
+				air.trace("minimize to tray: " + config.minimizeToTray);
+				if(!config.minimizeToTray) { return; }
+
+				this.systemTray = new $.air.systemTray(config.tray); 
+				$(this.systemTray).bind({
+					"activate": $.proxy(function() { this.activate(); }, this), 
+					"exit": $.proxy(function() { $(this).trigger("exit"); }, this) 
+				});
+				
+				
+				this.instance.addEventListener("displayStateChanging", $.proxy(onDisplayStateChanging, this));   
+			},
+
+			addHtmlLoader: function(htmlLoader) { 
+				this.instance.stage.addChild(htmlLoader);
 			}, 
+			
+			getCenterXY: function() {
+				var config = this.config, 
+					width = config.width, 
+					height = config.height, 
+					bounds = air.Screen.mainScreen.visibleBounds;
+				return { 
+					x: b.x + ((b.width/2) - (width/2)),
+					y: b.y + ((b.height/2) - (height/2))
+				};
+			}, 
+			show: function() {
+				if(this.trayed) { 
+					if (this.systemTray) {
+						this.systemTray.hideIcon();
+					}
 
-			setMenu: function(options) { //actions, _parentMenu){
-				if(!this.icon){ return; }
+					this.trayed = false;
+				}
 				
-				var config = $.extend({}, {
-						actions: []
-					}, options || {}), 
-					actions = config.actions,
-					menu = new air.NativeMenu();
-
-				$.each(actions, function(i, action) {
-					
-					var actionConfig = $.extend({}, {
-							isSeparator: false,
-							text: "", 	
-							callback: function() {}
-						}, action || {});
-						
-//						
-//						menuItem = !actionConfig.isSeparator ? menu.addItem(actionConfig.text) : new air.NativeMenuItem("", true);
-//					menuItem.addEventListener(air.Event.SELECT, actionConfig.callback); 
-//					
-//					item.submenu.addItem(menuItem);
-				}); 
-//				
-//				for (var i = 0, len = actions.length; i < len; i++) {
-//					var a = actions[i];
-//					if(a == '-'){
-//						menu.addItem(new air.NativeMenuItem("", true));
-//					}else{
-//						var item = menu.addItem(Ext.air.MenuItem(a));
-//						if(a.menu || (a.initialConfig && a.initialConfig.menu)){
-//							item.submenu = Ext.air.SystemTray.setMenu(a.menu || a.initialConfig.menu, menu);
-//						}
-//					}
-//					
-//					if(!_parentMenu){
-//						icon.menu = menu;
-//					}
-//				}
-				
-				return menu;
+				this.instance.visible = true;
+			}, 
+			hide: function() {
+				this.instance.visible = false;
+			}, 
+			close: function() {
+				this.instance.close();
+			},
+			activate: function() { 
+				this.show();
+				this.instance.activate();  
+			},
+			isVisible: function() {
+				return this.instance.visible;
+			},
+			isMinimized: function() {
+				return this.instance.displayState == air.NativeWindowDisplayState.MINIMIZED;
+			}, 
+			isMaximized: function() {
+				return this.instance.displayState == air.NativeWindowDisplayState.MAXIMIZED;
+			}, 
+			moveTo: function(x, y) {
+				this.config.x = this.instance.x = x;
+				this.config.y = this.instance.y = y;	
+			}, 
+			
+			resize : function(width, height){
+				this.config.width = this.instance.width = width;
+				this.config.height = this.instance.height = height;	
+			},
+			fullscreen: function(nonInteractive) {
+				var SDS = runtime.flash.display.StageDisplayState;
+				this.instance.stage.displayState = nonInteractive ? SDS.FULL_SCREEN : SDS.FULL_SCREEN_INTERACTIVE; 
+			},
+			
+			bringToFront: function() {
+				this.instance.orderToFront();
+			}, 
+			bringInFrontOf: function(win) {
+				this.instance.orderInFrontOf(win.instance ? win.instance : win);
+			}, 
+			sendToBack: function() {
+				this.instance.orderToBack();
+			}, 
+			sendBehind: function(win) {
+				this.instance.orderInBackOf(win.instance ? win.instance : win);
+			},
+			
+			bringChildToFront: function(child) { 
+				this.instance.stage.setChildIndex(child, this.instance.stage.numChildren - 1);
+			},
+			sendChildToBack: function(child) {
+				this.instance.stage.setChildIndex(child, 0);
+			},
+			focusChild: function(child) {
+				this.instance.stage.focus = child;
+			},
+			
+			unregister : function(){
+//				Ext.air.NativeWindowManager.unregister(this);
 			}
 		};
 	})();
@@ -521,123 +720,43 @@
 
 			var filter;
             switch (type) {
-				case "blur":
-//				var blurConfig = { 
-//					quality: null
-//				};
+				case "blur": 
 				filter = new runtime.flash.filters.BlurFilter();
                 break;
 				
                 case "dropshadow":
-                case "drop-shadow": 
-//				var dropShadowConfig = { 
-//					distance: null, 
-//					angle: null,
-//					color: null,
-//					alpha: null,
-//					strength: null, 
-//					quality: null, 
-//					inner: null, 
-//					knockout: null,
-//					hideObject: null
-//				};
-		
+                case "drop-shadow":  
         		filter = new runtime.flash.filters.DropShadowFilter();
 				break;
 				
-				case "glow":
-//				var glowConfig = {
-//					color: null, 
-//					alpha: null,
-//					strength: null,  
-//					quality: null,  
-//					inner: null,  
-//					knockout: null
-//				};
+				case "glow": 
         		filter = new runtime.flash.filters.GlowFilter();
 				break;
 				
-				case "bevel":
-//				var bevelConfig = { 
-//					distance:null,  
-//					angle:null,  
-//					highlightColor:null,  
-//					highlightAlpha:null,  
-//					shadowColor:null,  
-//					shadowAlpha:null,   
-//					strength:null,  
-//					quality:null,  
-//					type:null,  
-//					knockout: null
-//				};
+				case "bevel": 
         		filter = new runtime.flash.filters.BevelFilter();
                 break;
 				case "gradientglow":
-				case "gradient-glow":
-//				var gradientGlowConfig = { 
-//					distance:null,  
-//					angle:null,  
-//					colors:null,  
-//					alphas:null,  
-//					ratios:null,     
-//					strength:null,  
-//					quality:null,  
-//					type:null,  
-//					knockout: null
-//				};
-				
+				case "gradient-glow": 
         		filter = new runtime.flash.filters.GradientGlowFilter();
                 break;
 				
 				case "gradientbevel":
-				case "gradient-bevel":
-//				var gradientBevelConfig = {
-//					distance:null,  
-//					angle:null,  
-//					colors:null,  
-//					alphas:null,  
-//					ratios:null,    
-//					strength:null,  
-//					quality:null,  
-//					type:null,  
-//					knockout: null
-//				};
+				case "gradient-bevel": 
 				filter = new runtime.flash.filters.GradientBevelFilter();
 				break;
 						
 				case "colormatrix":
-				case "color-matrix":
-//				var colorMatrixConfig = { matrix: null };
+				case "color-matrix": 
 				filter = new runtime.flash.filters.ColorMatrixFilter(this.config.matrix);
                 break;
 				
-				case "convolution": 
-//				var convolutionConfig = { 
-//					matrixX:null,  
-//					matrixY:null,  
-//					matrix:null,  
-//					divisor:null,  
-//					bias:null,  
-//					preserveAlpha:null,  
-//					clamp:null,  
-//					color: null
-//				};
+				case "convolution":  
         		filter = new runtime.flash.filters.ConvolutionFilter();
 				break;
 			
 				case "displacementmap":	
-				case "displacement-map":		
-//				var displacementMapConfig = {
-//					mapBitmap: null,
-//					mapPoint: null,
-//					componentX: null,
-//					componentY: null,
-//					scaleX: null,
-//					scaleY: null,
-//					mode: null,
-//					color: null,
-//					alpha: null
-//				};
+				case "displacement-map":		 
 				
         		filter = new runtime.flash.filters.DisplacementMapFilter();
 				break;
@@ -1621,7 +1740,7 @@
     $.air.fxCache.prototype = (function(){
     
         return { 
-            get3DEffect: function(key, type, config){
+            get3DEffect: function(key, type, config) {
                	key = key + "-3D-" + type; 
                 if (!this.fx[key]) {
                     var factory = new $.air.effectFactory();
@@ -1629,7 +1748,7 @@
 				}
                 return this.fx[key];
             },
-            getBlenderEffect: function(key, type, config){
+            getBlenderEffect: function(key, type, config) {
 				key = key + "-blender-" + type;
                	if (!this.fx[key]) {
                     var factory = new $.air.blenderEffectFactory();
@@ -1717,12 +1836,10 @@
     })();
 	
 	/* presenter */
-	$.air.presenter = function(fxCache, eventBus, view, dependencies) { 
-		this.fxCache = fxCache;
-		this.eventBus = eventBus; 
-		this.view = view;
-
-		this.stage = htmlLoader.stage;
+	$.air.presenter = function(win, view, fxCache, dependencies) { 
+		this.win = win; 
+		this.view = view;  
+		this.fxCache = fxCache; 
 		
 		if(dependencies) { 
 			for(var key in dependencies) { 
@@ -1773,7 +1890,7 @@
 		};
 		
 		return {
-			init: function() {  
+			init: function() {   
 				if(!this.events) { return; }
 				
 				for(var cat in this.events) { 
@@ -1785,13 +1902,13 @@
 						default:
 						for(var selector in this.events[cat]) {
 							var callback = this.events[cat][selector]; 
-							this.view.$(parseSelector.call(this, selector)).live(tempCat, $.proxy(callback, this)); //.bind(tempCat, $.proxy(callback, this));
+							this.view.$(parseSelector.call(this, selector)).live(tempCat, $.proxy(callback, this)); 
 						}
 						break;
 					}
 				} 
 			}, 
-			dispose: function() {
+			dispose: function() { 
 				if(!this.events) { return; }
 				
 				$.each(this.events, $.proxy(function(type, eMap) { 
@@ -1802,11 +1919,13 @@
 						break;
 						default:
 						$.each(eMap, $.proxy(function(selector, callback) { 
-							this.view.$(parseSelector.call(this, selector)).die(type); //.unbind(type, $.proxy(callback, this));
+							this.view.$(parseSelector.call(this, selector)).die(type); 
 						}, this));
 						break;
 					}
 				}, this)); 
+				
+				
 			},
             
 			go: function() {}, //Default is empty - expected to be specified in presenter proto  
@@ -1835,7 +1954,7 @@
 			}, 
 			
 			trigger: function(e, args) {
-				$(this.eventBus).trigger(e, [this, args]);
+				this.win.trigger(e, this, args); 
 			}, 
 			
 			viewSource: function(config) { this.trigger("sourceViewed", config); }, 
@@ -1873,10 +1992,13 @@
             },
 			
 			bringToFront: function() {
-				this.stage.setChildIndex(this.view.htmlLoader, this.stage.numChildren - 1);
+				this.win.bringChildToFront(this.view.htmlLoader); 
 			}, 
 			sendToBack: function() {
-				this.stage.setChildIndex(this.view.htmlLoader, 0);
+				this.win.sendChildToBack(this.view.htmlLoader);  
+			},
+			focus: function() {
+				this.win.focusChild(this.view.htmlLoader);   
 			},
 
             //FX methods 
@@ -1987,6 +2109,131 @@
 		};
 	})(); 
 	
+	/* window */
+	$.air.window = function(eventBus) {
+		this.eventBus = eventBus;
+		
+		this.systemWindow = null;
+		 
+		this.init();
+	};
+	$.air.window.prototype = (function() {  
+		
+		function onExit() {
+			this.trigger("exited", this);
+		};
+		
+		return {
+			init: function() {  
+				
+				this.systemWindow = new $.air.systemWindow({ 
+					isNative: this.isNative || false, 
+					type: this.type ||"normal", 
+					chrome: this.chrome || "standard", 
+					transparent: this.transparent || false,
+					align: this.align || "", 
+					x: this.x || 0,
+					y: this.y || 0,
+					width: this.width ||600,
+					height: this.height ||400,
+					alwaysInFront: this.alwaysInFront || false, 
+					visible: this.visible || false, 
+					resizable: this.resizable || true, 
+					minimizable: this.minimizable || false,
+					minimizeToTray: this.minimizeToTray || false, 
+					html: this.html || "", 
+					tray: this.tray || { 
+						icon: "", 
+						tooltip: "", 
+						menu: []
+					}
+				});  
+				$(this.systemWindow).bind("exit", $.proxy(onExit, this));
+			},
+			
+			trigger: function(event, sender, args) {
+				$(this.eventBus).trigger(event, [sender, args]);
+			},
+			
+			show: function() {
+				this.systemWindow.show();
+			}, 
+			hide: function() {
+				this.systemWindow.hide();
+			}, 
+			close: function() {
+				this.systemWindow.close();
+			},
+			activate: function() {
+				this.systemWindow.activate();
+			},
+			isVisible: function() {
+				return this.systemWindow.isVisible();
+			},
+			isMinimized: function() {
+				return this.systemWindow.isMinimized();
+			}, 
+			isMaximized: function() {
+				return this.systemWindow.isMaximized();
+			}, 
+			moveTo: function(x, y) {
+				this.systemWindow.moveTo(x, y);	
+			}, 
+			getCenterXY: function() {
+				return this.systemWindow.getCenterXY(); 
+			}, 
+			
+			//System tray
+			hasTray: function() { 
+				return this.systemWindow.systemTray !== null;
+			},
+			hideTrayIcon: function() {
+				if(!this.systemWindow.systemTray) { return; }
+				this.systemWindow.systemTray.hideIcon();
+			},
+			showTrayIcon: function() { 
+				if(!this.systemWindow.systemTray) { return; }
+				this.systemWindow.systemTray.showIcon();
+			}, 
+			
+			//Size
+			resize : function(width, height){
+				this.systemWindow.resize(width, height);
+			},
+			fullscreen: function(nonInteractive) {
+				this.systemWindow.fullscreen(nonInteractive);
+			}, 
+			
+			//Positioning in relation to other windows
+			bringToFront: function() {
+				this.systemWindow.bringToFront();
+			}, 
+			bringInFrontOf: function(win) {
+				this.systemWindow.bringInFrontOf(win);
+			}, 
+			sendToBack: function() {
+				this.systemWindow.sendToBack();
+			}, 
+			sendBehind: function(win) {
+				this.systemWindow.sendBehind(win);
+			}, 
+			
+			//Window children 
+			addChild: function(htmlLoader) {
+				this.systemWindow.addHtmlLoader(htmlLoader); 
+			},  
+			bringChildToFront: function(child) { 
+				this.systemWindow.bringChildToFront(child);
+			},
+			sendChildToBack: function(child) {
+				this.systemWindow.sendChildToBack(child);
+			},
+			focusChild: function(child) {
+				this.systemWindow.focusChild(child);
+			}  
+		};
+	})(); 
+	
 	/* service */
 	$.air.service = function(dependencies) { 
 		if(dependencies) { 
@@ -1999,25 +2246,32 @@
 	
 	/* shell */
 	$.air.shell = function(appDef) {  
-		this.appDef = appDef;
-
-		this.env = air.NativeApplication.nativeApplication;
-		 
-		this.stage = htmlLoader.stage;
-		this.htmlLoaders = {};
-		this.htmlLoaderCount = 0;
-		this.loadCount = 0;
+		this._appDef = appDef;
 		
-		this.history = []; 
-		this.staged = {};
-
-		this.systemTray = new $.air.systemTray();
-		this.sytemMenu = new $.air.systemMenu(); 
-		this.clipboard = new $.air.clipboard(); 
-		this.fxCache = new $.air.fxCache(); 
+		//Tracking/context
+		this._history = []; 
+		this._staged = {};
+		this._context = null;
 		
+		//Windows
+		this._nativeWindow = null;
+		this._windows = {}; 
+		this._presenterWindows = {};
+
+		//HTML Loaders
+		this._htmlLoaders = {};
+		this._htmlLoaderCount = 0;
+		this._loadCount = 0;
+		
+		//Effects Cache
+		this._fxCache = new $.air.fxCache();  
+
+		//Clipboard
+		this._clipboard = new $.air.clipboard(); 
+		
+		//Eventing
 		this.eventBus = {};
-		this.events = $.extend({}, {
+		this._events = $.extend({}, {
 			hidden : function() { }, 
 			shown : function() { }, 
 			sourceViewed: function(args) { this.viewSource(args) }, 
@@ -2026,6 +2280,9 @@
 			minimized : function(args) { this.minimize(args); },
 			exited : function(args) { this.exit(args); } 
 		}, this.events || {});
+
+		//Native
+		this._env = air.NativeApplication.nativeApplication;
 		
 		this.init();
 	};
@@ -2034,79 +2291,97 @@
 
         //Private events
         function onKeyDown(e){
-			if(!this.context) { return; }
+			if(!this._context) { return; }
 		 	
 			if(e.target.stage.mouseChildren != true) { return; }
 
-			this.context.handleKeyDown(e);  
+			this._context.handleKeyDown(e);  
         }
         
         function onUserIdle() {  
-			
+			air.trace("userrrrrr idle");
 		}
-        
-        function onHtmlLoaderLoad(e){ 
-			var loader = e.target;
-			$.air.htmlLoader.fitToContent(loader);  
-			this.stage.addChild(loader);
 
-            this.loadCount++;
-
-            if (this.loadCount === this.htmlLoaderCount) { this.go(); }
-        }  
-		
 		function onPresenterEvent(e, sender, data) { 
 			switch(e.type) {  
 				
 				case "hidden": 
-				var presenter = this.staged[sender.key];
+				var presenter = this._staged[sender.key];
 				if(!presenter) return;
 				presenter.dispose();
 				
-				delete this.staged[sender.key];
+				delete this._staged[sender.key];
 				break; 
 				case "shown": 
-				sender.bringToFront();
-				this.stage.focus = sender.view.htmlLoader;
-				
-				this.context = sender;
-				this.staged[sender.key] = sender; 
+
+				sender.bringToFront(); 
+				sender.focus(); 
+				sender.win.activate(); 
+ 
+				this._staged[sender.key] = sender; 
+				this._context = sender;
 				break;
 				
 				default: 
 				data = data || {};
 				if (!data.ghost) {
-					this.context = sender;
+					this._context = sender;
 				}  
-			 	this.events[e.type].call(this, data); 
+			 	this._events[e.type].call(this, data); 
 				break;
 			}
 		}
 
 		return {
-			init: function() {  
-
-                if (this.idleThreshold) { 
-                    this.env.idleThreshold = this.idleThreshold;
-                    this.env.addEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
-                }
-                
-                //native air element init
-                //native air element event attachment 
-                this.stage.transform.perspectiveProjection.focalLength = 800;
-                this.stage.addEventListener("keyDown", $.proxy(onKeyDown, this), true); 
-				 
-				$.each(this.appDef.htmlLoaders(), $.proxy(function(key, htmlLoaderConfig) { 
-					var loader = $.air.htmlLoader.create(htmlLoaderConfig);
-					loader.addEventListener(air.Event.COMPLETE, $.proxy(onHtmlLoaderLoad, this)); 
+			init: function() {   
+				//Windows 
+				$.each(this._appDef.windows(), $.proxy(function(key, Window) { 
+					var win = new Window(this.eventBus); 
+					win.key = key;
+					win.systemWindow.instance.stage.transform.perspectiveProjection.focalLength = 800;
+					win.systemWindow.instance.stage.addEventListener("keyDown", $.proxy(onKeyDown, this), true); 
 					
-					this.htmlLoaders[key] = loader;
-					this.htmlLoaderCount++;
+					if(win.isNative) {
+						this._nativeWindow = win;
+					}
+					this._windows[key] = win;
+
+					$.each(win.presenters, $.proxy(function(i, presenterKey) {
+						this._presenterWindows[presenterKey] = win;
+					}, this));
+				}, this));
+			
+				//Load html loaders
+				//Assign to appropriate window 
+				$.each(this._appDef.htmlLoaders(), $.proxy(function(key, htmlLoaderConfig) { 
+					var loader = $.air.htmlLoader.create(htmlLoaderConfig);
+					loader.addEventListener(air.Event.COMPLETE, $.proxy(function(e) {
+						var target = e.target;
+						$.air.htmlLoader.fitToContent(target);  
+
+						this._presenterWindows[key].addChild(target); 
+			
+			            this._loadCount++;
+			
+			            if (this._loadCount === this._htmlLoaderCount) { this.go(); }
+					}, this)); 
+					
+					this._htmlLoaders[key] = loader;
+					this._htmlLoaderCount++;
 
 					loader.load(new air.URLRequest(htmlLoaderConfig.path)); 
 				}, this)); 
-				  
-				for(var type in this.events) {  
+
+				//Event binding
+				//User idle
+				//Keydown
+				//Custom 
+                if (this.idleThreshold) { 
+                    this._env.idleThreshold = this.idleThreshold;
+                    this._env.addEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
+                }  
+				
+				for(var type in this._events) {  
 					$(this.eventBus).bind(type, $.proxy(onPresenterEvent, this)); 
 				} 
 			}, 
@@ -2114,24 +2389,24 @@
 				//todo: remove user idle listener (if necessary)
 				
                 if (this.idleThreshold) { 
-                    this.env.removeEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
+                    this._env.removeEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
                 }
 				
-                this.stage.removeEventListener("keyDown", $.proxy(onKeyDown, this)); 
+//              this.stage.removeEventListener("keyDown", $.proxy(onKeyDown, this)); 
 				
-				$.each(this.htmlLoaders, $.proxy(function(key, loader) { $(loader).unbind("loaded", $.proxy(onHtmlLoaderLoad, this)); }, this));
+//				$.each(this.htmlLoaders, $.proxy(function(key, loader) { $(loader).unbind("loaded", $.proxy(onHtmlLoaderLoad, this)); }, this));
 				
 				$(this.eventBus).unbind(); 
 			},
 
             models: function(key) {
-				var Model = this.appDef.models(key) || $.air.model;
+				var Model = this._appDef.models(key) || $.air.model;
 				return new Model();
 			},
 			views: function(key) { 
-				var View = this.appDef.views(key) || $.air.view;  
+				var View = this._appDef.views(key) || $.air.view;  
 				
-				var view = new View(this.htmlLoaders[key]);
+				var view = new View(this.htmlLoaders(key));
 				view.key = key;
 				return view;
 			}, 
@@ -2146,40 +2421,50 @@
 					return current; 
 				}
 			
-				var Presenter = this.appDef.presenters(key) || $.air.presenter;
-				 
-				var presenter = new Presenter(this.fxCache, this.eventBus, this.views(key), dependencies);
+				var Presenter = this._appDef.presenters(key) || $.air.presenter;
+				  
+				var presenter = new Presenter(this._presenterWindows[key], this.views(key), this._fxCache, dependencies); 
 				presenter.key = key; 
 				
 				return presenter;
 			}, 
 			transitions: function(from, to) {
-				var Transition = this.appDef.transitions(from.key, to.key) || $.air.transition; 
+				var Transition = this._appDef.transitions(from.key, to.key) || $.air.transition; 
 				return new Transition(from, to);
+			}, 
+			
+			htmlLoaders: function(key) {
+				return this._htmlLoaders[key];
 			},
+			
+			windows: function(key) { 
+				return this._windows[key];
+			}, 
+			
 			services: function(key, dependencies) { 
-				var Service = this.appDef.services(key) || $.air.service;
+				var Service = this._appDef.services(key) || $.air.service;
 				return new Service(dependencies);
 			},
             
 			go: function() {}, //Default is empty - expected to be specified in shell proto 
 			
-			active: function(key) { return this.staged[key]; }, 
-			present: function(key, dependencies){
+			active: function(key) { return this._staged[key]; }, 
+			present: function(key, dependencies){ 
 				var presenter = this.presenters(key, dependencies);
 				presenter.go();
 
-				
 				var breadCrumb = { from: this.context ? this.context.key : "start", to: presenter.key };
-				this.history.push(breadCrumb); 
+				this._history.push(breadCrumb); 
 				
-				if (!this.context) { 
+				//if first time presentation or call to new window presenter
+				if (!this._context || this._context.win.key !== presenter.win.key) {  
 					presenter.show();
 					
 					return;
 				}
-				
-				var transition = this.transitions(this.context, presenter); 
+
+				//otherwise play defined/default transition
+				var transition = this.transitions(this._context, presenter); 
 				transition.play();  
             },
 			viewSource: function(args) { 
@@ -2191,13 +2476,26 @@
 				sv.setup(config);
 				sv.viewSource(); 
 			},
-			restore: function() { nativeWindow.restore(); }, 
-			maximize: function() { nativeWindow.maximize(); }, 
-			minimize: function() { nativeWindow.minimize(); }, 
+			restore: function() { 
+				if(!this._nativeWindow) { return; } 
+				this._nativeWindow.restore(); 
+			}, 
+			maximize: function() { 
+				if(!this._nativeWindow) { return; } 
+				this._nativeWindow.maximize(); 
+			}, 
+			minimize: function() { 
+				if(!this._nativeWindow) { return; } 
+				this._nativeWindow.minimize(); 
+			}, 
 			exit: function() { 
+				if (this._nativeWindow && this._nativeWindow.hasTray()) {
+					this._nativeWindow.hideTrayIcon();
+				}
+				
 				this.dispose(); 
 				
-				this.env.exit();
+				this._env.exit();
 			}
 		};
 	})(); 
@@ -2209,11 +2507,21 @@
 			views: {}, 
 			presenters: {}, 
 			transitions: {}, 
+			windows: {}, 
 			services: {},
 			shell: {} 
 		}, partial || {}); 
 		
-		this.full = {models: {}, views: {}, presenters: {}, transitions: {}, services: {}, shell: {}, htmlLoaders: {} }; 
+		this.full = {
+			models: {}, 
+			views: {}, 
+			presenters: {}, 
+			transitions: {}, 
+			windows: {}, 
+			services: {}, 
+			shell: {}, 
+			htmlLoaders: {} 
+		}; 
 	
 		this.init();
 	};
@@ -2251,6 +2559,7 @@
 							var val = viewProto[prop];
 							
 							switch (prop) {
+								case "win":
 								case "filters":
 								case "path":
 								case "x":
@@ -2258,13 +2567,9 @@
 								case "paintsDefaultBackground":
 									htmlLoaderConfig[prop] = val;
 									break;
-								case "position":
-									if (val.x) {
-										htmlLoaderConfig.x = val.x;
-									}
-									if (val.y) {
-										htmlLoaderConfig.y = val.y;
-									}
+								case "position":  
+									htmlLoaderConfig.x = val.x || 0;  
+									htmlLoaderConfig.y = val.y || 0; 
 									break;
 							}
 						}
@@ -2313,6 +2618,7 @@
 					"views": $.air.view,
 					"presenters": $.air.presenter, 
 					"transitions": $.air.transition,
+					"windows": $.air.window, 
 					"services": $.air.service 
 				});
 			}, 
@@ -2321,7 +2627,8 @@
 			presenters: function(key) { return lookup.call(this, "presenters", key); },
 			transitions: function(fromKey, toKey) { var from = lookup.call(this, "transitions", fromKey); if(!from) { return; } return from[toKey]; },
 			services: function(key) { return lookup.call(this, "services", key); },
-			shell: function() { return this.full["shell"]; }, // return lookup.call(this, "shell"); },
+			windows: function(key) { return lookup.call(this, "windows", key); },
+			shell: function() { return this.full["shell"]; }, 
 			htmlLoaders: function(key) { return lookup.call(this, "htmlLoaders", key); }
 		};
 	})();
@@ -2351,4 +2658,5 @@
 
 	/* mvp */
     $.air.mvp = function(definition) { return new $.air.application(definition); };
+	
 })(jQuery); 
