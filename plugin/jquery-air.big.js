@@ -365,7 +365,7 @@
 	$.air.systemTray.prototype = (function() {
 		
 		function onIconClick() {
-			this.trigger("activate");
+			this.trigger("activated");
 		};
 		
 		return {
@@ -477,6 +477,8 @@
 				this.hide();
 				this.systemTray.showIcon();
 				this.trayed = true; 
+				
+				 $(this).trigger("minimized");
 				break;
 			}
 		};
@@ -497,15 +499,6 @@
 					nativeOptions.maximizable = config.maximizable;
 					nativeOptions.transparent = config.transparent; 
 
-//					var loader = air.HTMLLoader.createRootWindow(false, nativeOptions, false);
-//					if (config.file) {
-//						loader.load(new air.URLRequest(config.file));
-//					}
-//					else {
-//						loader.loadString(config.html || "");
-//					} 
-
-//					this.instance = loader.window.nativeWindow;
 					this.instance = new air.NativeWindow(nativeOptions);
 				} 
 		
@@ -523,10 +516,9 @@
 				
 				win.alwaysInFront = alwaysInFront;
 				win.visible = visible;
-				win.width = width;
-				win.height = height; 
-				
-				
+				win.width = width + (width - win.stage.stageWidth);
+				win.height = height + (height - win.stage.stageHeight); 
+
 				switch(align) {
 					case "tl":
 					x = 0; 
@@ -550,16 +542,13 @@
 				
 				win.stage.scaleMode = window.runtime.flash.display.StageScaleMode.NO_SCALE; 
 				win.stage.align = window.runtime.flash.display.StageAlign.TOP_LEFT; 
-				
-				//todo: easy positioning top/left/bottom/right
-		
-				air.trace("minimize to tray: " + config.minimizeToTray);
+
 				if(!config.minimizeToTray) { return; }
 
 				this.systemTray = new $.air.systemTray(config.tray); 
 				$(this.systemTray).bind({
-					"activate": $.proxy(function() { this.activate(); }, this), 
-					"exit": $.proxy(function() { $(this).trigger("exit"); }, this) 
+					"activated": $.proxy(function() { $(this).trigger("activated"); }, this), 
+					"exited": $.proxy(function() { $(this).trigger("exited"); }, this) 
 				});
 				
 				
@@ -1383,8 +1372,7 @@
     $.air.query.prototype = (function(){
         //Private methods
         function setParm(key, value){ 
-			if (!$.isFunction(value)) {
-				air.trace(key + ": " + value);
+			if (!$.isFunction(value)) { 
 				this.statement.parameters[":" + key] = value;
 			}
         }
@@ -1496,10 +1484,7 @@
                 	$(query).unbind("failure", onFailure);
 				}
             	$(query).bind("failure", onFailure);
-            }
-			
-			air.trace(sql);
-
+            } 
             query.execute(sql, parms);
         };
         
@@ -1534,8 +1519,7 @@
 			filterParms: function(parms) { 
 				var tableColumns = this.columns, filtered = {};
 				
-				$.each(parms, function(key, value) { 
-					air.trace(key); air.trace(tableColumns[key]);
+				$.each(parms, function(key, value) {  
 					if(!tableColumns[key]) { return; }
 					filtered[key] = value; 
 				}); 
@@ -1546,16 +1530,17 @@
 				var query = new $.air.query(this.connection),
 					sql = "SELECT * FROM " + this.name, 
 					orderBy = parms.orderBy ? " ORDER BY " + parms.orderBy : "", 
-					limit = parms.limit ? " LIMIT " + parms.limit : "";
+					limit = parms.limit ? " LIMIT " + parms.limit : "",
+					sqlParms = {};
 					
 				delete parms["orderBy"];
 				delete parms["limit"];
 					
                 if (!$.isEmptyObject(parms)) {
-					parms = this.filterParms(parms);
+					sqlParms = this.filterParms(parms);
 					
                     var clauses = [];
-					$.each(parms, function(key, value) {  
+					$.each(sqlParms, function(key, value) {  
 						switch(key) {  
 							case "where":
 							if($.isArray(value)) {
@@ -1574,27 +1559,24 @@
                     sql += " WHERE " + clauses.join(" AND ");
                 } 
 				sql += orderBy;
-				sql += limit;
+				sql += limit; 
 								
-				air.trace(sql);
-								
-				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
+				executeQuery.call(this, sql, sqlParms, onSuccess, onFailure); 
             },
             set: function(parms, onSuccess, onFailure){ 
                 if ($.isEmptyObject(parms)) {
 					air.trace("set parms empty");
                     return;
                 }  
-				parms = this.filterParms(parms);
-				
-	            var query = new $.air.query(this.connection), sql = "";
+				var sqlParms = this.filterParms(parms),
+					query = new $.air.query(this.connection), sql = "";
 				
                 if (!parms.id) {
                     sql = "INSERT INTO " + this.name + " ";
 
-					delete parms["id"];
+					delete sqlParms["id"];
                     var columns = [], values = [];
-					$.each(parms, function(key, value) { 
+					$.each(sqlParms, function(key, value) { 
 						if($.isFunction(value)) { return; } 
 
 						columns.push(key);
@@ -1607,7 +1589,7 @@
                     sql = "UPDATE " + this.name + " SET "; 
 					
                     var tableColumns = this.columns, columns = [];
-					$.each(parms, function(key, value) { 
+					$.each(sqlParms, function(key, value) { 
 						if($.isFunction(value)) { return; }
 						
 						columns.push(key + " = :" + key);
@@ -1616,17 +1598,19 @@
                     sql += columns.join(",") + " WHERE id = :id"; 
                 }  
 
-				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
+				executeQuery.call(this, sql, sqlParms, onSuccess, onFailure); 
             },
-            del: function(parms, onSuccess, onFailure){
+            del: function(parms, onSuccess, onFailure){ 
 				var query = new $.air.query(this.connection), 
-					sql = "DELETE FROM " + this.name;
-					
+					sql = "DELETE FROM " + this.name,
+					sqlParms = {};
 				if (parms.id) {
+					sqlParms["id"] = parms.id;
+					
 					sql = sql + " WHERE id = :id";
-				}
+				} 
 				
-				executeQuery.call(this, sql, parms, onSuccess, onFailure); 
+				executeQuery.call(this, sql, sqlParms, onSuccess, onFailure); 
             }
         };
     })();
@@ -2119,9 +2103,9 @@
 	};
 	$.air.window.prototype = (function() {  
 		
-		function onExit() {
-			this.trigger("exited", this);
-		};
+		function onActivated() { this.trigger("activated", this); }
+		function onMinimized() { this.trigger("minimized", this); }
+		function onExit() { this.trigger("exited", this); };
 		
 		return {
 			init: function() {  
@@ -2148,7 +2132,11 @@
 						menu: []
 					}
 				});  
-				$(this.systemWindow).bind("exit", $.proxy(onExit, this));
+				$(this.systemWindow).bind( {
+					"activated": $.proxy(onActivated, this),					
+					"minimized": $.proxy(onMinimized, this),
+					"exited": $.proxy(onExit, this) 
+				});
 			},
 			
 			trigger: function(event, sender, args) {
@@ -2275,6 +2263,7 @@
 			hidden : function() { }, 
 			shown : function() { }, 
 			sourceViewed: function(args) { this.viewSource(args) }, 
+			activated: function(args) { this.restore(args); }, 
 			restored : function(args) { this.restore(args); }, 
 			maxmized : function(args) { this.maximize(args); }, 
 			minimized : function(args) { this.minimize(args); },
@@ -2299,11 +2288,16 @@
         }
         
         function onUserIdle() {  
-			air.trace("userrrrrr idle");
+			
 		}
 
 		function onPresenterEvent(e, sender, data) { 
 			switch(e.type) {  
+				case "activated":
+				sender.activate(); //sender is window here
+				
+			 	this._events["activated"].call(this); 
+				break;
 				
 				case "hidden": 
 				var presenter = this._staged[sender.key];
@@ -2327,6 +2321,13 @@
 				if (!data.ghost) {
 					this._context = sender;
 				}  
+				
+				switch(e.type) {
+					case "minimized":
+					this._context.hide();
+					break;
+				}
+
 			 	this._events[e.type].call(this, data); 
 				break;
 			}
@@ -2385,16 +2386,12 @@
 					$(this.eventBus).bind(type, $.proxy(onPresenterEvent, this)); 
 				} 
 			}, 
-			dispose: function() {
-				//todo: remove user idle listener (if necessary)
-				
+			dispose: function() { 
                 if (this.idleThreshold) { 
                     this._env.removeEventListener(air.Event.USER_IDLE, $.proxy(onUserIdle, this));
                 }
 				
-//              this.stage.removeEventListener("keyDown", $.proxy(onKeyDown, this)); 
-				
-//				$.each(this.htmlLoaders, $.proxy(function(key, loader) { $(loader).unbind("loaded", $.proxy(onHtmlLoaderLoad, this)); }, this));
+//              this.stage.removeEventListener("keyDown", $.proxy(onKeyDown, this));  
 				
 				$(this.eventBus).unbind(); 
 			},
@@ -2457,7 +2454,10 @@
 				this._history.push(breadCrumb); 
 				
 				//if first time presentation or call to new window presenter
-				if (!this._context || this._context.win.key !== presenter.win.key) {  
+				if (!this._context || 
+					this._context.key == presenter.key ||
+					!this._context.win ||
+					this._context.win.key !== presenter.win.key) {  
 					presenter.show();
 					
 					return;
