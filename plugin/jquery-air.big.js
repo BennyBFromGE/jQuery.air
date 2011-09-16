@@ -3,12 +3,13 @@
     $.air = {};
 
     /*** jQuery.air.crypto - utlity ***/
+	
     $.air.crypto = (function(){
         var ELS_RGN_ITEM_NAME = "Random Generated Number";
         var BYTE_LENGTH = 32;
         
         function random(){
-            var i, value = air.EncryptedLocalStore.getItem(ELS_RGN_ITEM_NAME);
+            var i, value = air.EncryptedLocalStore.getItem(ELS_RGN_ITEM_NAME); //	 Getting the RN from ELS to generate the first key as the first time
             
             if (value === null) {
                 //		This is the first Key generation and no RN was stored in ELS
@@ -23,10 +24,6 @@
                 //	Step 5: Store the random number from step one in ELS
                 //  in order to be able to rebuild the key later, with the propper pass
                 air.EncryptedLocalStore.setItem(ELS_RGN_ITEM_NAME, value);
-            }
-            else {
-                //	 Getting the RN from ELS to generate the first key as the first time
-                air.trace("Got RN from ELS");
             }
             
             return value;
@@ -516,8 +513,11 @@
 				
 				win.alwaysInFront = alwaysInFront;
 				win.visible = visible;
-				win.width = width + (width - win.stage.stageWidth);
-				win.height = height + (height - win.stage.stageHeight); 
+				win.width = width; 
+				win.height = height; 
+				win.stage.stageWidth = width;
+				win.stage.stageHeight = height; 
+				
 
 				switch(align) {
 					case "tl":
@@ -525,16 +525,16 @@
 					y = 0;
 					break;
 					case "tr":
-					x = bounds.width - width; 
+					x = bounds.width - win.width; 
 					y = 0;
 					break;
 					case "bl":
 					x = 0; 
-					y = bounds.height - height;
+					y = bounds.height - win.height;
 					break;
 					case "br":
-					x = bounds.width - width; 
-					y = bounds.height - height;
+					x = bounds.width - win.width; 
+					y = bounds.height - win.height;
 					break;
 				}
 				win.x = x;
@@ -1528,39 +1528,42 @@
 			}, 
             get: function(parms, onSuccess, onFailure){ 
 				var query = new $.air.query(this.connection),
-					sql = "SELECT * FROM " + this.name, 
+					sql = "SELECT * FROM " + this.name,
+					
+					where = parms.where || "", 
+					clauses = [], 
+					
 					orderBy = parms.orderBy ? " ORDER BY " + parms.orderBy : "", 
 					limit = parms.limit ? " LIMIT " + parms.limit : "",
 					sqlParms = {};
+				
+				if($.isArray(where)) {
+					$.each(where, function(i, clause) { clauses.push(clause); });
+				} else if(where.length) {
+					clauses.push(where);
+				}
 					
+				delete parms["where"];
 				delete parms["orderBy"];
 				delete parms["limit"];
 					
                 if (!$.isEmptyObject(parms)) {
-					sqlParms = this.filterParms(parms);
-					
-                    var clauses = [];
+					sqlParms = this.filterParms(parms); 
 					$.each(sqlParms, function(key, value) {  
-						switch(key) {  
-							case "where":
-							if($.isArray(value)) {
-								$.each(value, function(i, clause) { clauses.push(clause); });
-							} else {
-								clauses.push(value);
-							}
-							break;
-							
+						switch(key) {   
 							default:
 							clauses.push(key + "= :" + key);
 							break;
 						}
 					});
-                    
-                    sql += " WHERE " + clauses.join(" AND ");
                 } 
+				
+				if (clauses.length > 0) {
+					sql += " WHERE " + clauses.join(" AND ") + " ";
+				}
 				sql += orderBy;
 				sql += limit; 
-								
+
 				executeQuery.call(this, sql, sqlParms, onSuccess, onFailure); 
             },
             set: function(parms, onSuccess, onFailure){ 
@@ -2079,9 +2082,7 @@
 	/* transition */
 	$.air.transition = function(from, to) {
 		this.from = from;
-		this.to = to;
-		
-		air.trace(this.from.key + "->" + this.to.key);
+		this.to = to; 
 	};
 	$.air.transition.prototype = (function() {
 		
